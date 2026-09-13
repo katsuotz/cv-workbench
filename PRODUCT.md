@@ -29,8 +29,9 @@ The primary workflow is a short, form-led intake followed by a split editor and 
 - Changes autosave locally when storage is available; editing continues when autosave fails.
 - A backend preview adapter compiles generated LaTeX and returns PDF data or actionable diagnostics.
 - Saved documents with generated source reopen with their preview workspace available.
+- Users can register with a password or sign in with Google; verified Google sign-in can transfer the current anonymous CV into the account.
 - Preserve existing keyboard generation (`Cmd/Ctrl + Enter`), mobile Form/Preview navigation, downloads, source actions, storage schema, generator, preview adapter, and public component behavior.
-- No backend, preview adapter, generator, storage schema, or new dependency changes are in scope.
+- Account authentication changes must preserve anonymous editing, password authentication, cookie-backed sessions, and the existing CV session contract.
 
 ## Evidence on Hand
 

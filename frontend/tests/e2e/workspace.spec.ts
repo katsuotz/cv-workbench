@@ -111,7 +111,7 @@ test('opens a larger example preview from the template picker', async ({ page })
 
   const dialog = page.getByRole('dialog', { name: 'Editorial dossier' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByLabel('PDF page 1')).toBeVisible();
+  await expect(dialog.getByRole('img', { name: 'Editorial dossier CV template preview' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(dialog).toBeHidden();
 });
@@ -246,4 +246,46 @@ test('continues editing when remote autosave is unavailable', async ({ page }) =
   await expect(
     page.getByRole('region', { name: 'Rendered preview' }).getByLabel('PDF page 1')
   ).toBeVisible();
+});
+
+test('exposes Google sign-in in both account modes', async ({ page }) => {
+  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  const loginLink = page.getByRole('link', { name: 'Continue with Google' });
+  await expect(loginLink).toHaveAttribute(
+    'href',
+    'http://127.0.0.1:18733/api/v1/auth/google/start'
+  );
+
+  await page.getByRole('button', { name: 'Close account form' }).click();
+  await page.getByRole('button', { name: 'Register', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
+});
+
+test('flushes pending autosave before Google redirect and consumes success state', async ({
+  page
+}) => {
+  const requestOrder: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v1/cv/session') && request.method() === 'PUT') {
+      requestOrder.push('autosave');
+    }
+    if (request.url().includes('/api/v1/auth/google/start')) requestOrder.push('google');
+  });
+
+  await page.getByLabel(/Full name/).fill('Ada Lovelace');
+  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  await page.getByRole('link', { name: 'Continue with Google' }).click();
+
+  await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible();
+  await expect(page.getByText('Signed in with Google. Your CV session is synced.')).toBeVisible();
+  await expect(page.getByLabel(/Full name/)).toHaveValue('Ada Lovelace');
+  expect(requestOrder).toEqual(['autosave', 'google']);
+  await expect(page).toHaveURL('http://127.0.0.1:5173/app');
+});
+
+test('surfaces Google callback errors and removes callback query state', async ({ page }) => {
+  await page.goto('/app?auth=error&message=Google%20sign-in%20was%20cancelled');
+  await expect(page.getByRole('dialog', { name: 'Log in' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText('Google sign-in was cancelled');
+  await expect(page).toHaveURL('http://127.0.0.1:5173/app');
 });

@@ -18,6 +18,7 @@ export class SessionController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private inFlight = false;
   private pending: Promise<boolean> | null = null;
+  private bootstrapPending: Promise<CvSessionResponse> | null = null;
   private queued = false;
   private disposed = false;
 
@@ -35,9 +36,24 @@ export class SessionController {
   }
 
   async bootstrap(initial: CvSessionDraft) {
-    const session = await this.api.bootstrap(initial);
-    this.hydrate(session);
-    return session;
+    const pending = this.api.bootstrap(initial);
+    this.bootstrapPending = pending;
+    try {
+      const session = await pending;
+      const changedDuringBootstrap =
+        JSON.stringify(this.options.getDraft()) !== JSON.stringify(initial);
+      this.sessionId = session.id;
+      this.version = session.version;
+      if (changedDuringBootstrap) {
+        this.queued = true;
+        this.schedule();
+      } else {
+        this.options.applySession(session);
+      }
+      return session;
+    } finally {
+      if (this.bootstrapPending === pending) this.bootstrapPending = null;
+    }
   }
 
   hydrate(session: CvSessionResponse) {
@@ -57,7 +73,15 @@ export class SessionController {
   }
 
   async flush(force = false): Promise<boolean> {
-    if (!this.sessionId || this.disposed) return false;
+    if (this.disposed) return false;
+    if (!this.sessionId && this.bootstrapPending) {
+      try {
+        await this.bootstrapPending;
+      } catch {
+        return false;
+      }
+    }
+    if (!this.sessionId) return false;
     if (this.inFlight) {
       this.queued = true;
       if (force && this.timer) clearTimeout(this.timer);

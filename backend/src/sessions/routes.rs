@@ -2,9 +2,12 @@ use axum::{
     Json,
     extract::State,
     http::{HeaderMap, HeaderValue, StatusCode, header},
+    response::Redirect,
 };
+use serde::Deserialize;
 
 use super::{
+    google::{GOOGLE_STATE_COOKIE, clear_state_cookie_header, state_cookie_header},
     model::{AccountResponse, AnonymousSessionResponse, LoginRequest, Principal, RegisterRequest},
     service::{ANONYMOUS_COOKIE, AUTH_COOKIE, bearer_token as parsed_bearer_token, cookie_value},
 };
@@ -44,7 +47,12 @@ pub async fn register(
     };
     let session = state
         .sessions
-        .register(&request.email, &request.password, transfer_session_id)
+        .register(
+            &request.email,
+            &request.password,
+            request.name.as_deref(),
+            transfer_session_id,
+        )
         .await?;
     Ok((
         auth_cookie_headers(&state.config, &session.token),
@@ -66,6 +74,143 @@ pub async fn login(
         auth_cookie_headers(&state.config, &session.token),
         Json(session.account),
     ))
+}
+
+pub async fn google_start(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<(HeaderMap, Redirect), AppError> {
+    validate_origin(&headers, &state.config, true)?;
+    let transfer_session_id = match supplied_principal(&state, &headers).await? {
+        Some(Principal::Anonymous { session_id }) => Some(session_id),
+        Some(Principal::User { .. }) => {
+            return Err(AppError::Conflict("an account is already signed in".into()));
+        }
+        None => None,
+    };
+    let authorization = match state.google.start(transfer_session_id).await {
+        Ok(authorization) => authorization,
+        Err(error) => {
+            tracing::warn!(error = %error, "Google sign-in is unavailable");
+            return Ok(google_error_redirect(
+                &state,
+                "Google sign-in is not available right now.",
+                true,
+            ));
+        }
+    };
+    let mut response_headers = HeaderMap::new();
+    response_headers.append(
+        header::SET_COOKIE,
+        state_cookie_header(&authorization.state, state.config.cookie_secure)?,
+    );
+    Ok((response_headers, Redirect::temporary(&authorization.url)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GoogleCallbackQuery {
+    pub state: Option<String>,
+    pub code: Option<String>,
+    pub error: Option<String>,
+}
+
+pub async fn google_callback(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<GoogleCallbackQuery>,
+) -> Result<(HeaderMap, Redirect), AppError> {
+    if query.error.is_some() {
+        let state_consumed = state
+            .google
+            .cancel(
+                query.state.as_deref().unwrap_or_default(),
+                cookie_value(&headers, GOOGLE_STATE_COOKIE),
+            )
+            .await
+            .is_ok();
+        return Ok(google_error_redirect(
+            &state,
+            "Google sign-in was cancelled.",
+            state_consumed,
+        ));
+    }
+    let code = match query.code.as_deref().filter(|code| !code.is_empty()) {
+        Some(code) => code,
+        None => {
+            return Ok(google_error_redirect(
+                &state,
+                "Google sign-in could not be completed.",
+                false,
+            ));
+        }
+    };
+    let session = match state
+        .google
+        .callback(
+            query.state.as_deref().unwrap_or_default(),
+            cookie_value(&headers, GOOGLE_STATE_COOKIE),
+            code,
+        )
+        .await
+    {
+        Ok(session) => session,
+        Err(error) => {
+            tracing::warn!(error = %error, "Google sign-in failed");
+            return Ok(google_error_redirect(
+                &state,
+                "Google sign-in could not be completed.",
+                true,
+            ));
+        }
+    };
+    let mut response_headers = auth_cookie_headers(&state.config, &session.token);
+    response_headers.append(
+        header::SET_COOKIE,
+        clear_state_cookie_header(state.config.cookie_secure)?,
+    );
+    Ok((
+        response_headers,
+        frontend_redirect(&state, "success", None)?,
+    ))
+}
+
+fn google_error_redirect(
+    state: &AppState,
+    message: &str,
+    clear_state: bool,
+) -> (HeaderMap, Redirect) {
+    let mut response_headers = HeaderMap::new();
+    if clear_state {
+        if let Ok(cookie) = clear_state_cookie_header(state.config.cookie_secure) {
+            response_headers.append(header::SET_COOKIE, cookie);
+        }
+    }
+    let redirect = frontend_redirect(state, "error", Some(message))
+        .unwrap_or_else(|_| Redirect::temporary("/app?auth=error"));
+    (response_headers, redirect)
+}
+
+fn frontend_redirect(
+    state: &AppState,
+    result: &str,
+    message: Option<&str>,
+) -> Result<Redirect, AppError> {
+    let origin = state
+        .config
+        .frontend_origin
+        .to_str()
+        .map_err(|error| AppError::Internal(error.to_string()))?;
+    let mut url = url::Url::parse(origin).map_err(|error| AppError::Internal(error.to_string()))?;
+    url.set_path("/app");
+    url.set_query(None);
+    {
+        let mut query = url.query_pairs_mut();
+        query.append_pair("auth", result);
+        if let Some(message) = message {
+            query.append_pair("message", message);
+        }
+    }
+    Ok(Redirect::temporary(url.as_str()))
 }
 
 pub async fn logout(
@@ -168,6 +313,7 @@ mod tests {
             compile_timeout: Duration::from_secs(30),
             session_ttl: Duration::from_secs(3600),
             cookie_secure: false,
+            google: None,
         }
     }
 

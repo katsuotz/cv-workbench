@@ -92,6 +92,7 @@
   let diagnosticColumn: number | null = null;
   let sessionController: SessionController;
   let accountService: AccountService;
+  let workspaceBootstrapPending: Promise<void> | null = null;
   $: currentFingerprint = fingerprintCv(data);
   $: dirty =
     currentFingerprint !== generatedFingerprint ||
@@ -295,6 +296,48 @@
     authNotice = '';
   }
 
+  async function continueWithGoogle(event: MouseEvent) {
+    event.preventDefault();
+    if (authBusy) return;
+
+    authBusy = true;
+    authNotice = '';
+    try {
+      if (!sessionController.id && workspaceBootstrapPending) {
+        await workspaceBootstrapPending;
+      }
+      if (!sessionController.id || !(await flushAutosave(true))) {
+        authNotice = 'Could not save your CV before Google sign-in. Try again.';
+        return;
+      }
+      window.location.assign(accountService.googleStartUrl());
+    } catch (error) {
+      authNotice = error instanceof Error ? error.message : 'Google sign-in could not be started.';
+    } finally {
+      authBusy = false;
+    }
+  }
+
+  function consumeAuthCallback() {
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get('auth');
+    if (result !== 'success' && result !== 'error') return;
+
+    const message = url.searchParams.get('message');
+    url.searchParams.delete('auth');
+    url.searchParams.delete('message');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+
+    if (result === 'success') {
+      notice = 'Signed in with Google. Your CV session is synced.';
+      return;
+    }
+
+    authMode = 'login';
+    authOpen = true;
+    authNotice = message || 'Google sign-in could not be completed. Try again.';
+  }
+
   async function submitAuth() {
     authBusy = true;
     authNotice = '';
@@ -327,7 +370,8 @@
 
   onMount(() => {
     let active = true;
-    void (async () => {
+    consumeAuthCallback();
+    workspaceBootstrapPending = (async () => {
       try {
         templateCatalog = await backendApi.templates.list();
         if (!templateCatalog.length) throw new Error('No CV templates are available.');
@@ -335,9 +379,8 @@
         const user = await accountService.currentUser();
         if (!active) return;
         authUser = user;
-        const session = await sessionController.bootstrap(sessionDraft());
+        await sessionController.bootstrap(sessionDraft());
         if (!active) return;
-        hydrateSession(session);
         controller = await setupPreview(
           backendAdapter,
           lastGeneratedSource,
@@ -366,6 +409,7 @@
         };
       }
     })();
+    void workspaceBootstrapPending;
     return () => {
       active = false;
       sessionController.dispose();
@@ -394,6 +438,7 @@
     {authName}
     {authBusy}
     {authNotice}
+    googleStartUrl={accountService.googleStartUrl()}
     {advanced}
     onAuthMode={openAuth}
     onAuthOpenChange={(open) => (authOpen = open)}
@@ -401,6 +446,7 @@
     onPasswordChange={(value) => (authPassword = value)}
     onNameChange={(value) => (authName = value)}
     onSubmitAuth={submitAuth}
+    onGoogleAuth={continueWithGoogle}
     onLogout={logout}
     onToggleAdvanced={toggleAdvanced} />
 

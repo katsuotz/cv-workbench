@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { AuthUser } from '$lib/api';
-  import { Button, TextField } from '../base';
+  import { Button, ButtonLink, TextField } from '../base';
 
   export let presentation: 'intake' | 'workspace';
   export let authUser: AuthUser | null;
@@ -11,6 +11,7 @@
   export let authName: string;
   export let authBusy: boolean;
   export let authNotice: string;
+  export let googleStartUrl: string;
   export let advanced: boolean;
   export let onAuthMode: (mode: 'login' | 'register') => void;
   export let onAuthOpenChange: (open: boolean) => void;
@@ -18,6 +19,7 @@
   export let onPasswordChange: (value: string) => void;
   export let onNameChange: (value: string) => void;
   export let onSubmitAuth: () => void;
+  export let onGoogleAuth: (event: MouseEvent) => void | Promise<void>;
   export let onLogout: () => void;
   export let onToggleAdvanced: () => void;
 </script>
@@ -97,6 +99,14 @@
                 {authBusy ? 'Working…' : authMode === 'login' ? 'Log in' : 'Create account'}
               </Button>
             </form>
+            <ButtonLink
+              href={googleStartUrl}
+              variant="secondary"
+              className="google-auth"
+              disabled={authBusy}
+              onClick={onGoogleAuth}>
+              Continue with Google
+            </ButtonLink>
             <Button
               variant="text"
               className="account-switch"
@@ -258,6 +268,12 @@
   :global(.account-submit) {
     width: 100%;
     margin-top: 3px;
+  }
+
+  :global(.google-auth) {
+    width: 100%;
+    margin-top: 12px;
+    text-transform: none;
   }
 
   .account-error {

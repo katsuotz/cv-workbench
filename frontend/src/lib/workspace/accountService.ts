@@ -16,6 +16,10 @@ export class AccountService {
     return this.auth.getCurrentUser();
   }
 
+  googleStartUrl() {
+    return this.auth.getGoogleStartUrl();
+  }
+
   async authenticate(mode: 'login' | 'register', email: string, password: string, name?: string) {
     const user =
       mode === 'login'

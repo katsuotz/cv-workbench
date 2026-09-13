@@ -20,13 +20,14 @@ use compilation::{CompilationService, repository::PgCompilationRepository};
 use config::Config;
 use cv::{CvRenderService, CvService, CvTemplateService, repository::PgCvRepository};
 use documents::{DocumentService, repository::PgDocumentRepository};
-use sessions::{SessionService, repository::PgSessionRepository};
+use sessions::{SessionService, google::GoogleAuthService, repository::PgSessionRepository};
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub config: Arc<Config>,
     pub sessions: Arc<SessionService>,
+    pub google: Arc<GoogleAuthService>,
     pub documents: Arc<DocumentService>,
     pub compilation: Arc<CompilationService>,
     pub cv: Arc<CvService>,
@@ -41,9 +42,15 @@ pub fn router(pool: PgPool, config: Config) -> Router {
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers([header::ACCEPT, header::AUTHORIZATION, header::CONTENT_TYPE])
         .allow_credentials(true);
+    let session_repository = Arc::new(PgSessionRepository::new(pool.clone()));
     let sessions = Arc::new(SessionService::new(
-        Arc::new(PgSessionRepository::new(pool.clone())),
+        session_repository.clone(),
         time::Duration::seconds(config.session_ttl.as_secs() as i64),
+    ));
+    let google = Arc::new(GoogleAuthService::new(
+        session_repository,
+        time::Duration::seconds(config.session_ttl.as_secs() as i64),
+        config.google.clone(),
     ));
     let documents = Arc::new(DocumentService::new(Arc::new(PgDocumentRepository::new(
         pool.clone(),
@@ -60,6 +67,7 @@ pub fn router(pool: PgPool, config: Config) -> Router {
         pool,
         config,
         sessions,
+        google,
         documents,
         compilation,
         cv,
@@ -75,6 +83,14 @@ pub fn router(pool: PgPool, config: Config) -> Router {
         )
         .route("/api/v1/auth/register", post(sessions::routes::register))
         .route("/api/v1/auth/login", post(sessions::routes::login))
+        .route(
+            "/api/v1/auth/google/start",
+            get(sessions::routes::google_start),
+        )
+        .route(
+            "/api/v1/auth/google/callback",
+            get(sessions::routes::google_callback),
+        )
         .route("/api/v1/auth/logout", post(sessions::routes::logout))
         .route("/api/v1/auth/me", get(sessions::routes::me))
         .route("/api/v1/projects", post(documents::routes::create_project))

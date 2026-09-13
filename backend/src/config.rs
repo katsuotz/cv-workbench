@@ -33,6 +33,14 @@ pub struct Config {
     pub compile_timeout: Duration,
     pub session_ttl: Duration,
     pub cookie_secure: bool,
+    pub google: Option<GoogleConfig>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GoogleConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_uri: String,
 }
 
 impl Config {
@@ -77,6 +85,21 @@ impl Config {
                 .ok()
                 .unwrap_or_else(|| "false".into()),
         )?;
+        let google = match (
+            env::var("GOOGLE_CLIENT_ID").ok(),
+            env::var("GOOGLE_CLIENT_SECRET").ok(),
+            env::var("GOOGLE_REDIRECT_URI").ok(),
+        ) {
+            (None, None, None) => None,
+            (Some(client_id), Some(client_secret), Some(redirect_uri)) => Some(GoogleConfig {
+                client_id,
+                client_secret,
+                redirect_uri,
+            }),
+            (None, _, _) => return Err(ConfigError::Missing("GOOGLE_CLIENT_ID")),
+            (_, None, _) => return Err(ConfigError::Missing("GOOGLE_CLIENT_SECRET")),
+            (_, _, None) => return Err(ConfigError::Missing("GOOGLE_REDIRECT_URI")),
+        };
 
         Ok(Self {
             database_url,
@@ -87,6 +110,7 @@ impl Config {
             compile_timeout,
             session_ttl,
             cookie_secure,
+            google,
         })
     }
 

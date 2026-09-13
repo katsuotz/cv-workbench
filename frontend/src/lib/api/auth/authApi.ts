@@ -5,6 +5,7 @@ import type { AuthResponse, AuthUser } from './types';
 
 export interface AuthApi {
   getCurrentUser(): Promise<AuthUser | null>;
+  getGoogleStartUrl(): string;
   login(email: string, password: string): Promise<AuthUser>;
   register(email: string, password: string, name?: string): Promise<AuthUser>;
   logout(): Promise<void>;
@@ -15,6 +16,10 @@ export class AuthApiClient implements AuthApi {
     private readonly http: HttpClient = new HttpClient(),
     private readonly session: SessionContext = http.sessionContext
   ) {}
+
+  getGoogleStartUrl() {
+    return `${this.http.sessionContext.baseUrl}/api/v1/auth/google/start`;
+  }
 
   async getCurrentUser(): Promise<AuthUser | null> {
     try {

@@ -125,6 +125,21 @@ const server = createServer(async (request, response) => {
     );
     return;
   }
+  if (request.method === 'GET' && path === '/api/v1/auth/google/start') {
+    const previousToken = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
+    const user = { id: id('user'), email: 'google@example.com', name: 'Google User' };
+    const userToken = id('user-session');
+    users.set(userToken, user);
+    if (previousToken && cvSessions.has(previousToken)) {
+      cvSessions.set(userToken, cvSessions.get(previousToken));
+    }
+    response.writeHead(302, {
+      Location: 'http://127.0.0.1:5173/app?auth=success',
+      'Set-Cookie': `lr_session=${userToken}; Path=/; SameSite=Lax`
+    });
+    response.end();
+    return;
+  }
   if (
     request.method === 'POST' &&
     (path === '/api/v1/auth/login' || path === '/api/v1/auth/register')

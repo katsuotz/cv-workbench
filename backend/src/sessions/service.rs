@@ -48,10 +48,12 @@ impl SessionService {
         &self,
         email: &str,
         password: &str,
+        display_name: Option<&str>,
         transfer_session_id: Option<Uuid>,
     ) -> Result<AuthSessionResponse, AppError> {
         let email = normalize_email(email)?;
         validate_password(password)?;
+        let display_name = normalize_display_name(display_name)?;
         let password_hash = hash_password(password).await?;
         let token = random_token();
         let expires_at = OffsetDateTime::now_utc() + self.ttl;
@@ -60,6 +62,7 @@ impl SessionService {
             .create_account(
                 &email,
                 &password_hash,
+                display_name.as_deref(),
                 &token_hash(&token),
                 expires_at,
                 transfer_session_id,
@@ -84,7 +87,10 @@ impl SessionService {
             .find_user_by_email(&email)
             .await?
             .ok_or(AppError::Unauthorized)?;
-        if !verify_password(password, &user.password_hash).await? {
+        let Some(password_hash) = user.password_hash.as_deref() else {
+            return Err(AppError::Unauthorized);
+        };
+        if !verify_password(password, password_hash).await? {
             return Err(AppError::Unauthorized);
         }
         let token = random_token();
@@ -171,8 +177,25 @@ pub fn account_response(user: &UserRecord) -> AccountResponse {
     AccountResponse {
         id: user.id,
         email: user.email.clone(),
+        display_name: user.display_name.clone(),
         created_at: user.created_at,
     }
+}
+
+pub fn normalize_display_name(name: Option<&str>) -> Result<Option<String>, AppError> {
+    let Some(name) = name else {
+        return Ok(None);
+    };
+    let name = name.trim();
+    if name.is_empty() {
+        return Ok(None);
+    }
+    if name.chars().count() > 256 {
+        return Err(AppError::BadRequest(
+            "name must be 256 characters or fewer".into(),
+        ));
+    }
+    Ok(Some(name.to_owned()))
 }
 
 pub fn cookie_value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
@@ -256,7 +279,7 @@ fn random_token() -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-fn token_hash(token: &str) -> [u8; 32] {
+pub(crate) fn token_hash(token: &str) -> [u8; 32] {
     Sha256::digest(token.as_bytes()).into()
 }
 

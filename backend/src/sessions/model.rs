@@ -40,6 +40,7 @@ pub struct AnonymousSessionResponse {
 pub struct RegisterRequest {
     pub email: String,
     pub password: String,
+    pub name: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -52,6 +53,8 @@ pub struct LoginRequest {
 pub struct AccountResponse {
     pub id: Uuid,
     pub email: String,
+    #[serde(rename = "name")]
+    pub display_name: Option<String>,
     pub created_at: OffsetDateTime,
 }
 
@@ -59,8 +62,24 @@ pub struct AccountResponse {
 pub struct UserRecord {
     pub id: Uuid,
     pub email: String,
-    pub password_hash: String,
+    pub password_hash: Option<String>,
+    pub display_name: Option<String>,
     pub created_at: OffsetDateTime,
+}
+
+#[derive(Clone, Debug)]
+pub struct GoogleIdentity {
+    pub subject: String,
+    pub email: String,
+    pub email_verified: bool,
+    pub display_name: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GoogleLoginState {
+    pub nonce: String,
+    pub pkce_verifier: String,
+    pub anonymous_session_id: Option<Uuid>,
 }
 
 #[derive(Clone, Debug)]

@@ -28,6 +28,53 @@ describe('SessionController', () => {
     expect(controller.currentVersion).toBe(2);
   });
 
+  it('waits for the anonymous session before a forced save', async () => {
+    let resolveBootstrap: (value: typeof session) => void = () => undefined;
+    const bootstrapPending = new Promise<typeof session>((resolve) => {
+      resolveBootstrap = resolve;
+    });
+    const api = {
+      bootstrap: vi.fn(() => bootstrapPending),
+      get: vi.fn(),
+      create: vi.fn(),
+      save: vi.fn().mockResolvedValue({ ...session, version: 2 })
+    } as unknown as CvSessionApi;
+    const controller = new SessionController(api, { getDraft: () => draft, applySession: vi.fn() });
+
+    const bootstrap = controller.bootstrap(draft);
+    const flush = controller.flush(true);
+    await Promise.resolve();
+    expect(api.save).not.toHaveBeenCalled();
+
+    resolveBootstrap(session);
+    await expect(bootstrap).resolves.toEqual(session);
+    await expect(flush).resolves.toBe(true);
+    expect(api.save).toHaveBeenCalledWith(draft, 1);
+  });
+
+  it('preserves edits made while bootstrapping the session', async () => {
+    const initial = { ...draft, fingerprint: 'initial' };
+    const local = { ...draft, fingerprint: 'local' };
+    const applySession = vi.fn();
+    const api = {
+      bootstrap: vi.fn().mockResolvedValue({ ...session, fingerprint: 'remote' }),
+      get: vi.fn(),
+      create: vi.fn(),
+      save: vi.fn()
+    } as unknown as CvSessionApi;
+    const controller = new SessionController(api, {
+      getDraft: () => local,
+      applySession
+    });
+
+    await controller.bootstrap(initial);
+
+    expect(controller.id).toBe(session.id);
+    expect(controller.currentVersion).toBe(session.version);
+    expect(applySession).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
   it('recovers from a version conflict with the latest session', async () => {
     const applySession = vi.fn();
     const latest = { ...session, version: 4 };

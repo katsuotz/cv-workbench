@@ -43,6 +43,8 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 - `POST /api/v1/sessions/anonymous`
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
+- `GET /api/v1/auth/google/start`
+- `GET /api/v1/auth/google/callback`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 - `POST /api/v1/projects`
@@ -60,7 +62,9 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 - `GET /api/v1/cv/templates/{id}/preview`
 - `POST /api/v1/cv/render`
 
-Account registration and login use Argon2id password hashes and set an HttpOnly `lr_session` cookie. Registering while an anonymous session is supplied transfers that session's projects, documents, revisions, and CV draft to the new account atomically. Anonymous bearer sessions remain supported for existing clients.
+Account registration and password login use Argon2id password hashes and set an HttpOnly `lr_session` cookie. Registering while an anonymous session is supplied transfers that session's projects, documents, revisions, and CV draft to the new account atomically. Anonymous bearer sessions remain supported for existing clients.
+
+Google OIDC login is enabled when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` are all set. The redirect URI must exactly match the callback URI configured in Google Cloud Console. The flow uses a one-time server-side state record, an HttpOnly state cookie, nonce validation, and S256 PKCE. Google ID tokens must have a valid Google signature, issuer, audience, expiry, nonce, and verified email. A verified Google email links to an existing account or creates a Google-only account with a nullable password; a supplied anonymous session is transferred atomically on successful callback. The optional Google display name is retained when the account has no existing display name.
 
 CV draft writes use an optimistic `expected_version` field. Send `expected_version: 0` to create the first draft, then send the version returned by the previous write; a stale version returns `409 Conflict`. Draft data is bounded to 1 MiB and responses include the associated project, document, and latest revision metadata. `template_id` stores the selected catalog template; `generated_template_id` records which template produced the persisted source, so changing the selection leaves an older preview explicitly outdated. The render endpoint returns escaped source and its timestamp; it does not enqueue a live compile job.
 

@@ -21,7 +21,7 @@ The backend is a single Rust crate organized by feature. Redis is not required.
 - Rust and Cargo
 - Docker Desktop with Compose
 
-The development stack uses PostgreSQL 19 Beta 2, which is pre-release software.
+The development stack uses PostgreSQL 19 Beta 3, which is pre-release software.
 
 ## Local setup
 
@@ -99,4 +99,4 @@ See [docs/what-left-to-do.md](docs/what-left-to-do.md) for the backlog, [docs/fr
 
 ## Development notes
 
-Do not commit `.env` files, dependencies, build output, test reports, logs, or generated screenshots. PostgreSQL Beta 2 uses a dedicated Compose volume because beta catalog versions may not be compatible across releases.
+Do not commit `.env` files, dependencies, build output, test reports, logs, or generated screenshots. PostgreSQL Beta 3 uses a dedicated Compose volume because beta catalog versions may not be compatible across releases.

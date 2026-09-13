@@ -103,4 +103,4 @@ cargo test --manifest-path backend/Cargo.toml
 docker compose --env-file .env up -d
 ```
 
-The `backend/compose.yaml` file uses the official PostgreSQL 19 Beta 2 image, the slim Rust API target, and a separate XeLaTeX-enabled worker target under the `latex-renderer` project name. Only the worker target contains TeX packages and enables compilation. PostgreSQL 19 remains pre-release, so this is for development and compatibility testing only. Beta 2 uses its own Docker volume because beta catalog versions are not directly compatible. The migration rejects servers below major version 19.
+The `backend/compose.yaml` file uses the official PostgreSQL 19 Beta 3 image, the slim Rust API target, and a separate XeLaTeX-enabled worker target under the `latex-renderer` project name. Only the worker target contains TeX packages and enables compilation. PostgreSQL 19 remains pre-release, so this is for development and compatibility testing only. Beta 3 uses its own Docker volume because beta catalog versions are not directly compatible. The migration rejects servers below major version 19.

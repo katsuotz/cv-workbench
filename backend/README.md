@@ -16,7 +16,7 @@ The API host port is configured in `.env` via `API_PORT` and defaults to `18732`
 
 `COOKIE_SECURE=true` adds the `Secure` attribute to the `lr_session` cookie; enable it when the API is served over HTTPS. State-changing requests carrying cookies are accepted only when their `Origin` matches `FRONTEND_ORIGIN`. Browser clients must send credentials for account sessions.
 
-Beta 2 uses a separate Docker volume because PostgreSQL beta catalog versions are not directly compatible across beta releases. Existing data must be migrated with PostgreSQL upgrade tooling or `pg_dump`/`pg_restore`.
+Beta 3 uses a separate Docker volume because PostgreSQL beta catalog versions are not directly compatible across beta releases. Existing data must be migrated with PostgreSQL upgrade tooling or `pg_dump`/`pg_restore`.
 
 Run the API:
 

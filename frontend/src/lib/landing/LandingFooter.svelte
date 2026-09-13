@@ -3,6 +3,9 @@
     <span class="brand-mark">CV</span>
     <span class="brand-name">CV Workbench</span>
   </a>
+  <p class="footer-credit">
+    Built by <a href="https://katsuotz.com">katsuotz.com</a>
+  </p>
 </footer>
 
 <style>
@@ -16,6 +19,24 @@
 
   .footer-brand {
     flex-shrink: 0;
+  }
+
+  .footer-credit {
+    margin: 0;
+    color: var(--quiet-ink);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .footer-credit a {
+    color: var(--ink);
+    font-weight: 600;
+    text-underline-offset: 3px;
+    transition: color 180ms ease;
+  }
+
+  .footer-credit a:hover {
+    color: var(--blue);
   }
 
   @media (max-width: 700px) {

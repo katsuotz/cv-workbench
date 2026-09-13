@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cvworkbench-production
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+
+    steps:
+      - name: Check out release
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check frontend
+        run: bun run --cwd frontend check
+
+      - name: Lint frontend
+        run: bun run --cwd frontend lint
+
+      - name: Test frontend
+        run: bun run --cwd frontend test
+
+      - name: Check backend formatting
+        run: cargo fmt --manifest-path backend/Cargo.toml -- --check
+
+      - name: Check backend
+        run: cargo check --manifest-path backend/Cargo.toml --locked --all-targets
+
+      - name: Test backend
+        run: cargo test --manifest-path backend/Cargo.toml --locked
+
+      - name: Build production frontend
+        env:
+          PUBLIC_API_BASE_URL: https://cvworkbench.com
+          PUBLIC_SITE_URL: https://cvworkbench.com
+          PUBLIC_PREVIEW_MODE: backend
+        run: bun run --cwd frontend build
+
+      - name: Build API image
+        run: docker build --target api --tag "cvworkbench-api:${RELEASE_TAG}" --file backend/Dockerfile backend
+
+      - name: Build worker image
+        run: docker build --target worker --tag "cvworkbench-worker:${RELEASE_TAG}" --file backend/Dockerfile backend
+
+      - name: Package release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir="$RUNNER_TEMP/cvworkbench-release-$RELEASE_TAG"
+          mkdir -p "$release_dir"
+          docker save --output "$release_dir/cvworkbench-api-$RELEASE_TAG.tar" "cvworkbench-api:$RELEASE_TAG"
+          docker save --output "$release_dir/cvworkbench-worker-$RELEASE_TAG.tar" "cvworkbench-worker:$RELEASE_TAG"
+          tar -czf "$release_dir/cvworkbench-frontend-$RELEASE_TAG.tar.gz" -C frontend/build .
+
+      - name: Configure deployment SSH
+        shell: bash
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+      - name: Transfer release
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          release_dir="$RUNNER_TEMP/cvworkbench-release-$RELEASE_TAG"
+          scp -q -o IdentitiesOnly=yes \
+            "$release_dir/cvworkbench-api-$RELEASE_TAG.tar" \
+            "$release_dir/cvworkbench-worker-$RELEASE_TAG.tar" \
+            "$release_dir/cvworkbench-frontend-$RELEASE_TAG.tar.gz" \
+            "$DEPLOY_USER@$DEPLOY_HOST:/tmp/"
+
+      - name: Deploy release
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          ssh -o IdentitiesOnly=yes "$DEPLOY_USER@$DEPLOY_HOST" "RELEASE_TAG='$RELEASE_TAG' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          app_dir=/opt/cvworkbench
+          frontend_dir="$app_dir/frontend"
+          release_dir="$frontend_dir/$RELEASE_TAG"
+          api_archive="/tmp/cvworkbench-api-$RELEASE_TAG.tar"
+          worker_archive="/tmp/cvworkbench-worker-$RELEASE_TAG.tar"
+          frontend_archive="/tmp/cvworkbench-frontend-$RELEASE_TAG.tar.gz"
+
+          test -d "$app_dir"
+          test -f "$app_dir/compose.production.yaml"
+          test -f "$app_dir/.env"
+          test "$(stat -c '%a' "$app_dir/.env")" = 600
+          grep -q '^COOKIE_SECURE=true$' "$app_dir/.env"
+          test -f "$api_archive"
+          test -f "$worker_archive"
+          test -f "$frontend_archive"
+
+          docker load --input "$api_archive"
+          docker load --input "$worker_archive"
+
+          if [ ! -e "$release_dir" ]; then
+            install -d -o root -g root -m 755 "$release_dir/build"
+            tar -xzf "$frontend_archive" -C "$release_dir/build"
+            find "$release_dir" -type d -exec chmod 755 {} +
+            find "$release_dir" -type f -exec chmod 644 {} +
+          else
+            test -f "$release_dir/build/index.html"
+          fi
+
+          next_link="$frontend_dir/.current-$RELEASE_TAG.next"
+          rm -f "$next_link"
+          ln -s "$RELEASE_TAG" "$next_link"
+          mv -Tf "$next_link" "$frontend_dir/current"
+
+          sed -i "s/^RELEASE_TAG=.*/RELEASE_TAG=$RELEASE_TAG/" "$app_dir/.env"
+          chmod 600 "$app_dir/.env"
+
+          cd "$app_dir"
+          docker compose -f compose.production.yaml config --quiet
+          docker compose -f compose.production.yaml up -d --no-build api worker
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:18732/health/live && \
+              curl -fsS -o /dev/null http://127.0.0.1:18732/health/ready; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              exit 1
+            fi
+            sleep 2
+          done
+
+          docker compose -f compose.production.yaml ps
+          rm -f "$api_archive" "$worker_archive" "$frontend_archive"
+          REMOTE
+
+      - name: Verify public deployment
+        run: |
+          curl --fail --silent --show-error --output /dev/null https://cvworkbench.com/
+          curl --fail --silent --show-error --output /dev/null https://cvworkbench.com/health/live

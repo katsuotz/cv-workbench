@@ -26,6 +26,7 @@ pub trait SessionRepository: Send + Sync {
 
     async fn find_user_by_email(&self, email: &str) -> Result<Option<UserRecord>, AppError>;
     async fn find_user_by_id(&self, user_id: Uuid) -> Result<UserRecord, AppError>;
+    async fn list_users(&self) -> Result<Vec<UserRecord>, AppError>;
 
     async fn create_google_login_state(
         &self,
@@ -167,7 +168,7 @@ impl SessionRepository for PgSessionRepository {
 
     async fn find_user_by_email(&self, email: &str) -> Result<Option<UserRecord>, AppError> {
         Ok(sqlx::query(
-            "SELECT id, email, password_hash, display_name, created_at FROM users WHERE email = $1",
+            "SELECT id, email, password_hash, display_name, role, created_at FROM users WHERE email = $1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -178,7 +179,7 @@ impl SessionRepository for PgSessionRepository {
 
     async fn find_user_by_id(&self, user_id: Uuid) -> Result<UserRecord, AppError> {
         sqlx::query(
-            "SELECT id, email, password_hash, display_name, created_at FROM users WHERE id = $1",
+            "SELECT id, email, password_hash, display_name, role, created_at FROM users WHERE id = $1",
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -186,6 +187,17 @@ impl SessionRepository for PgSessionRepository {
         .map(user_from_row)
         .transpose()?
         .ok_or(AppError::Unauthorized)
+    }
+
+    async fn list_users(&self) -> Result<Vec<UserRecord>, AppError> {
+        sqlx::query(
+            "SELECT id, email, password_hash, display_name, role, created_at FROM users ORDER BY created_at ASC, id ASC",
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(user_from_row)
+        .collect()
     }
 
     async fn create_google_login_state(
@@ -328,7 +340,7 @@ impl SessionRepository for PgSessionRepository {
         .await?;
         let user = if let Some(user_id) = existing_user_id {
             let user_row = sqlx::query(
-                "SELECT id, email, password_hash, display_name, created_at FROM users WHERE id = $1 FOR UPDATE",
+                "SELECT id, email, password_hash, display_name, role, created_at FROM users WHERE id = $1 FOR UPDATE",
             )
             .bind(user_id)
             .fetch_one(&mut *transaction)
@@ -336,7 +348,7 @@ impl SessionRepository for PgSessionRepository {
             user_from_row(user_row)?
         } else {
             let user_row = sqlx::query(
-                "INSERT INTO users (email, password_hash, display_name) VALUES ($1, NULL, $2) ON CONFLICT (email) DO UPDATE SET email = users.email RETURNING id, email, password_hash, display_name, created_at",
+                "INSERT INTO users (email, password_hash, display_name) VALUES ($1, NULL, $2) ON CONFLICT (email) DO UPDATE SET email = users.email RETURNING id, email, password_hash, display_name, role, created_at",
             )
             .bind(&identity.email)
             .bind(&identity.display_name)
@@ -428,7 +440,7 @@ impl SessionRepository for PgSessionRepository {
         let mut transaction = self.pool.begin().await?;
         let user = if let Some(user_id) = authenticated_user_id {
             let user = sqlx::query(
-                "SELECT id, email, password_hash, display_name, created_at FROM users WHERE id = $1 FOR UPDATE",
+                "SELECT id, email, password_hash, display_name, role, created_at FROM users WHERE id = $1 FOR UPDATE",
             )
             .bind(user_id)
             .fetch_optional(&mut *transaction)
@@ -465,7 +477,7 @@ impl SessionRepository for PgSessionRepository {
     ) -> Result<UserRecord, AppError> {
         let mut transaction = self.pool.begin().await?;
         let user = match sqlx::query(
-            "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, password_hash, display_name, created_at",
+            "INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id, email, password_hash, display_name, role, created_at",
         )
         .bind(email)
         .bind(password_hash)
@@ -545,7 +557,7 @@ impl SessionRepository for PgSessionRepository {
 
     async fn seed_user(&self, email: &str, password_hash: &str) -> Result<UserRecord, AppError> {
         let row = sqlx::query(
-            "INSERT INTO users (email, password_hash) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash RETURNING id, email, password_hash, display_name, created_at",
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash RETURNING id, email, password_hash, display_name, role, created_at",
         )
         .bind(email)
         .bind(password_hash)
@@ -568,7 +580,7 @@ async fn resolve_linkedin_user(
     {
         return user_from_row(
             sqlx::query(
-                "SELECT id, email, password_hash, display_name, created_at FROM users WHERE id = $1",
+                "SELECT id, email, password_hash, display_name, role, created_at FROM users WHERE id = $1",
             )
             .bind(user_id)
             .fetch_one(&mut **transaction)
@@ -578,7 +590,7 @@ async fn resolve_linkedin_user(
 
     let email = identity.email.as_deref().ok_or(AppError::Unauthorized)?;
     let user = if let Some(row) = sqlx::query(
-        "SELECT id, email, password_hash, display_name, created_at FROM users WHERE email = $1 FOR UPDATE",
+        "SELECT id, email, password_hash, display_name, role, created_at FROM users WHERE email = $1 FOR UPDATE",
     )
     .bind(email)
     .fetch_optional(&mut **transaction)
@@ -588,7 +600,7 @@ async fn resolve_linkedin_user(
     } else {
         user_from_row(
             sqlx::query(
-                "INSERT INTO users (email, password_hash, display_name) VALUES ($1, NULL, $2) RETURNING id, email, password_hash, display_name, created_at",
+                "INSERT INTO users (email, password_hash, display_name) VALUES ($1, NULL, $2) RETURNING id, email, password_hash, display_name, role, created_at",
             )
             .bind(email)
             .bind(&identity.display_name)
@@ -701,6 +713,10 @@ fn user_from_row(row: sqlx::postgres::PgRow) -> Result<UserRecord, AppError> {
         email: row.try_get("email")?,
         password_hash: row.try_get("password_hash")?,
         display_name: row.try_get("display_name")?,
+        role: row
+            .try_get::<String, _>("role")?
+            .try_into()
+            .map_err(|error| AppError::Internal(format!("{error}")))?,
         created_at: row.try_get("created_at")?,
     })
 }

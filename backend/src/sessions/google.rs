@@ -357,7 +357,7 @@ mod tests {
     use crate::{
         config::GoogleConfig,
         sessions::{
-            model::{GoogleIdentity, GoogleLoginState, UserRecord},
+            model::{GoogleIdentity, GoogleLoginState, UserRecord, UserRole},
             repository::SessionRepository,
         },
     };
@@ -395,6 +395,10 @@ mod tests {
         }
 
         async fn find_user_by_id(&self, _user_id: Uuid) -> Result<UserRecord, AppError> {
+            Err(AppError::Internal("unused test repository method".into()))
+        }
+
+        async fn list_users(&self) -> Result<Vec<UserRecord>, AppError> {
             Err(AppError::Internal("unused test repository method".into()))
         }
 
@@ -444,6 +448,7 @@ mod tests {
                 email: identity.email.clone(),
                 password_hash: None,
                 display_name: identity.display_name.clone(),
+                role: UserRole::User,
                 created_at: OffsetDateTime::now_utc(),
             })
         }

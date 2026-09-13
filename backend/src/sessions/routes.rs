@@ -414,6 +414,14 @@ pub async fn me(
     Ok(Json(state.sessions.account(&principal).await?))
 }
 
+pub async fn admin_users(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<super::model::AdminUserResponse>>, AppError> {
+    let principal = state.sessions.authenticate(&headers).await?;
+    Ok(Json(state.sessions.list_users(&principal).await?))
+}
+
 pub fn validate_origin(
     headers: &HeaderMap,
     config: &Config,

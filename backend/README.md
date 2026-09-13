@@ -49,6 +49,7 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 - `GET /api/v1/auth/linkedin/callback`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `GET /api/v1/admin/users`
 - `POST /api/v1/projects`
 - `POST /api/v1/projects/{project_id}/documents`
 - `GET /api/v1/documents/{document_id}`
@@ -67,7 +68,9 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 - `POST /api/v1/cv/import/linkedin/pending/{id}/apply`
 - `DELETE /api/v1/cv/import/linkedin/pending/{id}`
 
-Account registration and password login use Argon2id password hashes and set an HttpOnly `lr_session` cookie. Registering while an anonymous session is supplied transfers that session's projects, documents, revisions, and CV draft to the new account atomically. Anonymous bearer sessions remain supported for existing clients.
+Account registration and password login use Argon2id password hashes and set an HttpOnly `lr_session` cookie. Authenticated account responses include `id`, `email`, `name`, `role` (`user` or `root`), and `created_at`. Registering while an anonymous session is supplied transfers that session's projects, documents, revisions, and CV draft to the new account atomically. Anonymous bearer sessions remain supported for existing clients.
+
+`GET /api/v1/admin/users` requires an authenticated `root` account and returns user records with `id`, `email`, `name`, `role`, and `created_at`. Unauthenticated requests return `401 Unauthorized`; authenticated non-root requests return `403 Forbidden`.
 
 Google OIDC login is enabled when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` are all set. The redirect URI must exactly match the callback URI configured in Google Cloud Console. The flow uses a one-time server-side state record, an HttpOnly state cookie, nonce validation, and S256 PKCE. Google ID tokens must have a valid Google signature, issuer, audience, expiry, nonce, and verified email. A verified Google email links to an existing account or creates a Google-only account with a nullable password; a supplied anonymous session is transferred atomically on successful callback. The optional Google display name is retained when the account has no existing display name.
 
@@ -84,7 +87,7 @@ All application identifiers are PostgreSQL UUIDv7 values generated with `uuidv7(
 The seed binary idempotently creates or updates the explicitly requested account and populates one deterministic Demo CV project, document, revision, and draft. It is never run by migrations or application startup:
 
 ```powershell
-cargo run --bin seed -- --email admin@example.test --password 'a-long-development-password'
+cargo run --bin seed -- --email demo@example.test --password 'a-long-development-password'
 ```
 
 The equivalent environment variables are `SEED_EMAIL` and `SEED_PASSWORD`.

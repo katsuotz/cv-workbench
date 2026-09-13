@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use super::{
     model::{
-        AccountResponse, AnonymousSessionResponse, AuthSessionResponse, Principal, UserRecord,
+        AccountResponse, AdminUserResponse, AnonymousSessionResponse, AuthSessionResponse,
+        Principal, UserRecord, UserRole,
     },
     repository::SessionRepository,
 };
@@ -159,6 +160,24 @@ impl SessionService {
         ))
     }
 
+    pub async fn list_users(
+        &self,
+        principal: &Principal,
+    ) -> Result<Vec<AdminUserResponse>, AppError> {
+        let user_id = principal.user_id().ok_or(AppError::Unauthorized)?;
+        let current_user = self.repository.find_user_by_id(user_id).await?;
+        if current_user.role != UserRole::Root {
+            return Err(AppError::Forbidden);
+        }
+        Ok(self
+            .repository
+            .list_users()
+            .await?
+            .iter()
+            .map(admin_user_response)
+            .collect())
+    }
+
     pub async fn seed_user(
         &self,
         email: &str,
@@ -178,6 +197,17 @@ pub fn account_response(user: &UserRecord) -> AccountResponse {
         id: user.id,
         email: user.email.clone(),
         display_name: user.display_name.clone(),
+        role: user.role,
+        created_at: user.created_at,
+    }
+}
+
+fn admin_user_response(user: &UserRecord) -> AdminUserResponse {
+    AdminUserResponse {
+        id: user.id,
+        email: user.email.clone(),
+        display_name: user.display_name.clone(),
+        role: user.role,
         created_at: user.created_at,
     }
 }

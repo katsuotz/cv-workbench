@@ -19,6 +19,7 @@ env:
   PUBLIC_SITE_URL: https://cvworkbench.com
   PUBLIC_LINKEDIN_ENABLED: "false"
   PUBLIC_PREVIEW_MODE: backend
+  PUBLIC_GOOGLE_TAG_ID: G-M3EY6389QN
   IMAGE_NAMESPACE: ghcr.io/katsuotz/generate-kit
   WORKER_RUNTIME_TAG: v1
 

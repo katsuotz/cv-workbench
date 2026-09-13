@@ -30,6 +30,15 @@ function id(prefix) {
   return `${prefix}-${sequence}`;
 }
 
+function makeUser(email, name = null) {
+  return {
+    id: id('user'),
+    email,
+    name,
+    role: email === 'root@example.test' ? 'root' : 'user'
+  };
+}
+
 function makePdf() {
   const stream = 'BT\n/F1 24 Tf\n72 720 Td\n(Backend compiled CV) Tj\nET\n';
   const objects = [
@@ -130,7 +139,7 @@ const server = createServer(async (request, response) => {
   }
   if (request.method === 'GET' && path === '/api/v1/auth/google/start') {
     const previousToken = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
-    const user = { id: id('user'), email: 'google@example.com', name: 'Google User' };
+    const user = makeUser('google@example.com', 'Google User');
     const userToken = id('user-session');
     users.set(userToken, user);
     if (previousToken && cvSessions.has(previousToken)) {
@@ -146,7 +155,7 @@ const server = createServer(async (request, response) => {
   if (request.method === 'GET' && path === '/api/v1/auth/linkedin/start') {
     const previousToken = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
     const intent = url.searchParams.get('intent') === 'import' ? 'import' : 'login';
-    const user = { id: id('user'), email: 'linkedin@example.com', name: 'LinkedIn User' };
+    const user = makeUser('linkedin@example.com', 'LinkedIn User');
     const userToken = id('user-session');
     users.set(userToken, user);
     if (previousToken && cvSessions.has(previousToken)) {
@@ -197,7 +206,7 @@ const server = createServer(async (request, response) => {
     (path === '/api/v1/auth/login' || path === '/api/v1/auth/register')
   ) {
     const input = await body(request);
-    const user = { id: id('user'), email: input.email, name: input.name ?? null };
+    const user = makeUser(input.email, input.name ?? null);
     const userToken = id('user-session');
     users.set(userToken, user);
     const previousToken = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
@@ -206,6 +215,35 @@ const server = createServer(async (request, response) => {
     }
     response.setHeader('Set-Cookie', `lr_session=${userToken}; Path=/; SameSite=Lax`);
     json(response, 200, { user });
+    return;
+  }
+  if (request.method === 'GET' && path === '/api/v1/admin/users') {
+    const currentUser = users.get(request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1]);
+    if (!currentUser) {
+      json(response, 401, { code: 'unauthorized', message: 'Not signed in.' });
+      return;
+    }
+    if (currentUser.role !== 'root') {
+      json(response, 403, { code: 'forbidden', message: 'Root access required.' });
+      return;
+    }
+    json(response, 200, [
+      { ...currentUser, created_at: '2026-01-08T09:00:00Z' },
+      {
+        id: 'user-regular-1',
+        email: 'candidate@example.test',
+        name: 'Demo Candidate',
+        role: 'user',
+        created_at: '2026-02-17T09:00:00Z'
+      },
+      {
+        id: 'user-regular-2',
+        email: 'editor@example.test',
+        name: 'Editorial User',
+        role: 'user',
+        created_at: '2026-04-03T09:00:00Z'
+      }
+    ]);
     return;
   }
   if (request.method === 'POST' && path === '/api/v1/auth/logout') {

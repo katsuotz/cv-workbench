@@ -12,6 +12,9 @@ development.
 The frontend image uses Nginx to serve the generated static files and route client-side paths such
 as `/app` to the generated `200.html` fallback.
 
+The production frontend build reads `PUBLIC_GOOGLE_TAG_ID` from the release environment. Leave it
+unset for local development; the release workflow supplies the production measurement ID.
+
 ## Required files
 
 Copy `.env.production.example` to `.env` on the server and replace the placeholder database password. Keep the file readable only by the deployment user or root.

@@ -116,6 +116,7 @@ pub fn router(pool: PgPool, config: Config) -> Router {
         )
         .route("/api/v1/auth/logout", post(sessions::routes::logout))
         .route("/api/v1/auth/me", get(sessions::routes::me))
+        .route("/api/v1/admin/users", get(sessions::routes::admin_users))
         .route("/api/v1/projects", post(documents::routes::create_project))
         .route(
             "/api/v1/projects/{project_id}/documents",

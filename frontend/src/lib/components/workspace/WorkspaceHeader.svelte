@@ -37,6 +37,11 @@
       <div class="account-controls">
         {#if authUser}
           <span class="account-label" title={authUser.email}>{authUser.email}</span>
+          {#if authUser.role === 'root'}
+            <ButtonLink href="/admin" variant="secondary" className="account-button admin-link">
+              Admin
+            </ButtonLink>
+          {/if}
           <Button variant="secondary" className="account-button" onClick={onLogout}>Log out</Button>
         {:else}
           <Button

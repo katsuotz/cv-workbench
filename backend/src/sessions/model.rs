@@ -2,6 +2,25 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UserRole {
+    User,
+    Root,
+}
+
+impl TryFrom<String> for UserRole {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "user" => Ok(Self::User),
+            "root" => Ok(Self::Root),
+            _ => Err("invalid user role"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Principal {
     Anonymous {
@@ -55,6 +74,7 @@ pub struct AccountResponse {
     pub email: String,
     #[serde(rename = "name")]
     pub display_name: Option<String>,
+    pub role: UserRole,
     pub created_at: OffsetDateTime,
 }
 
@@ -64,6 +84,17 @@ pub struct UserRecord {
     pub email: String,
     pub password_hash: Option<String>,
     pub display_name: Option<String>,
+    pub role: UserRole,
+    pub created_at: OffsetDateTime,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AdminUserResponse {
+    pub id: Uuid,
+    pub email: String,
+    #[serde(rename = "name")]
+    pub display_name: Option<String>,
+    pub role: UserRole,
     pub created_at: OffsetDateTime,
 }
 

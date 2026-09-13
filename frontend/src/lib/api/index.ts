@@ -1,3 +1,4 @@
+import { AdminApiClient, type AdminApi } from './admin/adminApi';
 import { AuthApiClient, type AuthApi } from './auth/authApi';
 import { CompilationApiClient, type CompilationApi } from './compilation/compilationApi';
 import { CvRenderApiClient, type CvRenderApi } from './cv-render/cvRenderApi';
@@ -8,6 +9,7 @@ import { DocumentsApiClient, type DocumentApi } from './documents/documentsApi';
 import { TemplatesApiClient, type TemplatesApi } from './templates/templatesApi';
 
 export interface BackendApi {
+  admin: AdminApi;
   auth: AuthApi;
   cvSession: CvSessionApi;
   cvImport: CvImportApi;
@@ -24,6 +26,7 @@ export function createBackendApi(): BackendApi {
     documents.rememberWorkspace(session.projectId, session.documentId)
   );
   return {
+    admin: new AdminApiClient(http),
     auth: new AuthApiClient(http),
     cvSession,
     cvImport: new CvImportApiClient(http),
@@ -37,6 +40,7 @@ export { BackendApiError } from './core/apiError';
 export { SessionContext } from './core/sessionContext';
 export { HttpClient } from './core/httpClient';
 export type { AuthUser } from './auth/types';
+export type { AdminUser, AdminUserRole } from './admin/types';
 export type { LinkedInPendingImport } from './cv-import/types';
 export type { CvSessionDraft, CvSessionResponse } from './cv-session/types';
 export type { CvRenderRequest, CvRenderResponse } from './cv-render/types';

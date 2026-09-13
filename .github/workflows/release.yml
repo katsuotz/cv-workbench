@@ -14,6 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   RELEASE_TAG: ${{ github.ref_name }}
   PUBLIC_API_BASE_URL: https://cvworkbench.com
   PUBLIC_SITE_URL: https://cvworkbench.com

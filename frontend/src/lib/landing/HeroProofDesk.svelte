@@ -1,12 +1,14 @@
 <section class="hero section-frame" aria-labelledby="hero-title">
   <div class="hero-copy">
     <h1 id="hero-title">
-      Build the CV.
+      Build an <span class="ats-term">ATS-friendly</span>
+      CV.
       <br />
       <span>See the result.</span>
     </h1>
     <p class="hero-lede">
-      Enter your experience, review the generated LaTeX, and download the finished PDF.
+      Create a clear, structured CV for applicant tracking systems, review the generated LaTeX, and
+      download the finished PDF.
     </p>
     <div class="hero-actions">
       <a class="button button-primary button-large" href="/app">
@@ -26,7 +28,7 @@
     <div
       class="proof-desk"
       role="img"
-      aria-label="A CV moving from structured facts to exact LaTeX source to a rendered PDF">
+      aria-label="An ATS-friendly CV moving from structured facts to exact LaTeX source to a rendered PDF">
       <div class="desk-stage facts-stage">
         <div class="stage-heading">
           <span class="stage-index">01</span>
@@ -122,6 +124,11 @@
     font-size: clamp(54px, 7vw, 94px);
     font-weight: 700;
     line-height: 0.93;
+  }
+
+  .ats-term {
+    color: var(--ink);
+    white-space: nowrap;
   }
 
   .hero-lede {

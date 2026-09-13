@@ -10,10 +10,10 @@
 <section id="templates" class="templates section-frame" aria-labelledby="templates-title">
   <div class="section-heading">
     <div>
-      <h2 id="templates-title">Choose a template.</h2>
+      <h2 id="templates-title">Choose an ATS-friendly template.</h2>
     </div>
     <p>
-      Pick a layout that fits your experience. You can switch templates before generating your CV.
+      Pick a clear layout for your experience. You can switch templates before generating your CV.
     </p>
   </div>
   <div class="template-grid">

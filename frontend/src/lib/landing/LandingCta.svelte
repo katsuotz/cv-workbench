@@ -1,6 +1,6 @@
 <section class="final-cta section-frame" aria-labelledby="cta-title">
   <div class="cta-copy">
-    <h2 id="cta-title">Build your CV.</h2>
+    <h2 id="cta-title">Build your ATS-friendly CV.</h2>
   </div>
   <a class="button button-light button-large" href="/app">
     Start building <span aria-hidden="true">→</span>

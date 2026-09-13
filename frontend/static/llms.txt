@@ -1,0 +1,13 @@
+# CV Workbench
+
+> CV Workbench is an ATS-friendly web CV builder that turns structured career details into an exact LaTeX source file and a rendered PDF.
+
+## Product
+
+- CV Workbench helps people build an ATS-friendly CV with clear sections for their summary, experience, achievements, skills, education, certificates, and projects.
+- People can choose a CV template, review generated XeLaTeX source, inspect compiler diagnostics, and download PDF or `.tex` output.
+- The interactive builder is available at https://cvworkbench.com/app.
+
+## Primary page
+
+- [CV Workbench](https://cvworkbench.com/): public product overview and entry point to the CV builder.

@@ -9,24 +9,37 @@ test('shows the CV Workbench landing page and routes visitors to the builder', a
 
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: /Build the CV\. See the result\./ })
+    page.getByRole('heading', { name: /Build an ATS-friendly CV\. See the result\./ })
   ).toBeVisible();
   await expect(
     page.getByText(
-      'Enter your experience, review the generated LaTeX, and download the finished PDF.'
+      'Create a clear, structured CV for applicant tracking systems, review the generated LaTeX, and download the finished PDF.'
     )
   ).toBeVisible();
   await expect(page.getByRole('region', { name: 'CV form builder' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Open builder' })).toHaveAttribute('href', '/app');
+  await expect(page).toHaveTitle('CV Workbench — ATS-Friendly CV Builder');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content',
+    /ATS-friendly CV.*structured sections.*exact LaTeX source.*polished PDF/
+  );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/$/);
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /https?:\/\//);
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
     'content',
     'summary_large_image'
   );
-  expect(
+  const structuredData = JSON.parse(
     await page.locator('script[type="application/ld+json"]').evaluate((script) => script.innerHTML)
-  ).toContain('CV Workbench');
+  );
+  expect(structuredData['@graph']).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ '@type': 'Organization' }),
+      expect.objectContaining({ '@type': 'WebSite' }),
+      expect.objectContaining({ '@type': 'WebApplication' })
+    ])
+  );
   expect(apiRequests).toEqual([]);
 
   const previews = page.getByRole('img', { name: /CV template preview/ });
@@ -36,6 +49,20 @@ test('shows the CV Workbench landing page and routes visitors to the builder', a
       await previews.nth(index).evaluate((image) => (image as HTMLImageElement).naturalWidth)
     ).toBeGreaterThan(0);
   }
+});
+
+test('publishes crawl and AI discovery files for the public site', async ({ request }) => {
+  const robots = await request.get('/robots.txt');
+  expect(robots.ok()).toBeTruthy();
+  expect(await robots.text()).toContain('Sitemap: https://cvworkbench.com/sitemap.xml');
+
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.ok()).toBeTruthy();
+  expect(await sitemap.text()).toContain('<loc>https://cvworkbench.com/</loc>');
+
+  const llms = await request.get('/llms.txt');
+  expect(llms.ok()).toBeTruthy();
+  expect(await llms.text()).toContain('CV Workbench is an ATS-friendly web CV builder');
 });
 
 test('opens the builder from the primary landing CTA', async ({ page }) => {
@@ -59,7 +86,7 @@ test('keeps the landing page usable without horizontal overflow on mobile', asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: /Build the CV\. See the result\./ })
+    page.getByRole('heading', { name: /Build an ATS-friendly CV\. See the result\./ })
   ).toBeVisible();
   const previews = page.getByRole('img', { name: /CV template preview/ });
   await expect(previews).toHaveCount(3);
@@ -78,7 +105,7 @@ test('keeps the landing page usable without horizontal overflow on mobile', asyn
 test('has no automatically detectable landing-page accessibility violations', async ({ page }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: /Build the CV\. See the result\./ })
+    page.getByRole('heading', { name: /Build an ATS-friendly CV\. See the result\./ })
   ).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);

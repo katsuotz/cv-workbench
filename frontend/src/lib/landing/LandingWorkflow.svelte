@@ -6,10 +6,10 @@
     <li>
       <div class="workflow-marker" aria-hidden="true">01</div>
       <div>
-        <h3>Add your details</h3>
+        <h3>Build an ATS-ready structure</h3>
         <p>
-          Fill in the facts that matter, section by section. Your work stays editable and close at
-          hand.
+          Add your experience, skills, education, and achievements in clear sections built for quick
+          scanning.
         </p>
       </div>
     </li>

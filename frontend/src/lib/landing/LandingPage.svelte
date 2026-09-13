@@ -7,9 +7,10 @@
   import LandingWorkflow from './LandingWorkflow.svelte';
   import HeroProofDesk from './HeroProofDesk.svelte';
 
-  const pageTitle = 'CV Workbench — Build your CV.';
+  const pageTitle = 'CV Workbench — ATS-Friendly CV Builder';
   const pageDescription =
-    'Turn structured career facts into an exact LaTeX source file and a polished CV.';
+    'Build an ATS-friendly CV with structured sections, clear formatting, exact LaTeX source, and a polished PDF for job applications.';
+  const defaultSiteOrigin = import.meta.env.DEV ? '' : 'https://cvworkbench.com';
   const socialImagePath = '/templates/editorial-v1.webp';
 
   const templates = [
@@ -33,18 +34,58 @@
     }
   ];
 
-  $: siteOrigin = $page.url.origin;
+  $: siteOrigin = (
+    import.meta.env.PUBLIC_SITE_URL ||
+    defaultSiteOrigin ||
+    $page.url.origin
+  ).replace(/\/$/, '');
   $: canonicalUrl = `${siteOrigin}/`;
   $: socialImageUrl = `${siteOrigin}${socialImagePath}`;
   $: structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: 'CV Workbench',
-    url: canonicalUrl,
-    description: pageDescription,
-    applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web',
-    featureList: ['Structured CV editing', 'Exact LaTeX source', 'Rendered PDF']
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${siteOrigin}/#organization`,
+        name: 'CV Workbench',
+        url: canonicalUrl,
+        logo: {
+          '@type': 'ImageObject',
+          url: `${siteOrigin}/favicon.svg`
+        }
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${siteOrigin}/#website`,
+        name: 'CV Workbench',
+        url: canonicalUrl,
+        description: pageDescription,
+        inLanguage: 'en-US',
+        publisher: { '@id': `${siteOrigin}/#organization` }
+      },
+      {
+        '@type': 'WebApplication',
+        '@id': `${siteOrigin}/#application`,
+        name: 'CV Workbench',
+        url: canonicalUrl,
+        description: pageDescription,
+        applicationCategory: 'BusinessApplication',
+        applicationSubCategory: 'ATS-friendly CV builder',
+        operatingSystem: 'Web browser',
+        browserRequirements: 'Requires JavaScript',
+        image: socialImageUrl,
+        inLanguage: 'en-US',
+        featureList: ['ATS-friendly CV structure', 'Exact LaTeX source', 'Rendered PDF'],
+        creator: { '@id': `${siteOrigin}/#organization` },
+        potentialAction: {
+          '@type': 'CreateAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${siteOrigin}/app`
+          }
+        }
+      }
+    ]
   };
   $: structuredDataMarkup = `<script type="application/ld+json">${JSON.stringify(structuredData)}\u003c/script>`;
 </script>
@@ -61,6 +102,8 @@
     content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta name="application-name" content="CV Workbench" />
   <link rel="canonical" href={canonicalUrl} />
+  <link rel="alternate" hreflang="en" href={canonicalUrl} />
+  <link rel="alternate" hreflang="x-default" href={canonicalUrl} />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="CV Workbench" />
   <meta property="og:locale" content="en_US" />
@@ -72,12 +115,12 @@
   <meta property="og:image:type" content="image/webp" />
   <meta property="og:image:width" content="1020" />
   <meta property="og:image:height" content="1320" />
-  <meta property="og:image:alt" content="Editorial CV template preview from CV Workbench" />
+  <meta property="og:image:alt" content="ATS-friendly CV template preview from CV Workbench" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={pageTitle} />
   <meta name="twitter:description" content={pageDescription} />
   <meta name="twitter:image" content={socialImageUrl} />
-  <meta name="twitter:image:alt" content="Editorial CV template preview from CV Workbench" />
+  <meta name="twitter:image:alt" content="ATS-friendly CV template preview from CV Workbench" />
   {@html structuredDataMarkup}
   {#each templates as template}
     <link rel="preload" as="image" href={template.image} />

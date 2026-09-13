@@ -1,6 +1,6 @@
 # LaTeX Renderer
 
-LaTeX Renderer is a pnpm/Rust monorepo for editing LaTeX documents and previewing compiled PDFs. The current product focuses on CV workflows, with a SvelteKit frontend and a Rust/Axum backend that stores documents and runs isolated XeLaTeX jobs.
+LaTeX Renderer is a Bun/Rust monorepo for editing LaTeX documents and previewing compiled PDFs. The current product focuses on CV workflows, with a SvelteKit frontend and a Rust/Axum backend that stores documents and runs isolated XeLaTeX jobs.
 
 ## Repository layout
 
@@ -9,15 +9,15 @@ LaTeX Renderer is a pnpm/Rust monorepo for editing LaTeX documents and previewin
 ├── frontend/       SvelteKit, Svelte 5, Tailwind CSS 4, CodeMirror, PDF.js
 ├── backend/        Rust/Axum API and PostgreSQL-backed compilation worker
 ├── docs/           Architecture plans and backlog
-├── package.json    Root pnpm workspace metadata
-└── pnpm-lock.yaml  Shared dependency lockfile
+├── package.json    Root Bun workspace metadata
+└── bun.lock        Shared dependency lockfile
 ```
 
 The backend is a single Rust crate organized by feature. Redis is not required.
 
 ## Requirements
 
-- Node.js with pnpm 10
+- Bun 1.4.2
 - Rust and Cargo
 - Docker Desktop with Compose
 
@@ -28,7 +28,7 @@ The development stack uses PostgreSQL 19 Beta 3, which is pre-release software.
 Install frontend dependencies from the repository root:
 
 ```powershell
-pnpm install
+bun install
 ```
 
 Create local environment files:
@@ -55,7 +55,7 @@ The default local endpoints are:
 Start the frontend in another terminal:
 
 ```powershell
-pnpm --dir frontend dev
+bun run --cwd frontend dev
 ```
 
 Check that the API is running:
@@ -72,11 +72,11 @@ Run these from the repository root.
 Frontend:
 
 ```powershell
-pnpm --dir frontend check
-pnpm --dir frontend lint
-pnpm --dir frontend test
-pnpm --dir frontend test:e2e
-pnpm --dir frontend build
+bun run --cwd frontend check
+bun run --cwd frontend lint
+bun run --cwd frontend test
+bun run --cwd frontend test:e2e
+bun run --cwd frontend build
 ```
 
 Backend:

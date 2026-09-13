@@ -2,9 +2,9 @@
 
 ## Status and repository layout
 
-The first frontend foundation is implemented in `frontend/` as a SvelteKit application. Workspace metadata and the single pnpm lockfile remain at the repository root, frontend application and tooling files live under `frontend/`, and backend code belongs under `backend/`.
+The first frontend foundation is implemented in `frontend/` as a SvelteKit application. Workspace metadata and the single Bun lockfile remain at the repository root, frontend application and tooling files live under `frontend/`, and backend code belongs under `backend/`.
 
-The app is a SvelteKit workspace with a backend-backed document and compile flow. The application has one preview path: generated TeX is sent to the backend and the returned PDF artifact is displayed with PDF.js. Run frontend scripts from the repository root with `pnpm --dir frontend <script>` or `pnpm --filter @latex-renderer/frontend <script>`.
+The app is a SvelteKit workspace with a backend-backed document and compile flow. The application has one preview path: generated TeX is sent to the backend and the returned PDF artifact is displayed with PDF.js. Run frontend scripts from the repository root with `bun run --cwd frontend <script>`.
 
 ## Implemented foundation
 
@@ -69,11 +69,11 @@ Template integration adds `GET /api/v1/cv/templates`, `GET /api/v1/cv/templates/
 
 From the repository root, the frontend package should pass:
 
-- `pnpm --filter @latex-renderer/frontend check`
-- `pnpm --filter @latex-renderer/frontend lint`
-- `pnpm --filter @latex-renderer/frontend test`
-- `pnpm --filter @latex-renderer/frontend test:e2e`
-- `pnpm --filter @latex-renderer/frontend build`
+- `bun run --cwd frontend check`
+- `bun run --cwd frontend lint`
+- `bun run --cwd frontend test`
+- `bun run --cwd frontend test:e2e`
+- `bun run --cwd frontend build`
 
 Keep the deterministic backend HTTP fixture for UI tests. Full compile integration tests may use the Compose worker and must not require a developer's host LaTeX installation.
 

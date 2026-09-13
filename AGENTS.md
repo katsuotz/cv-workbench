@@ -60,14 +60,14 @@ These instructions apply to the whole repository. More specific instructions in 
 Run from the repository root:
 
 ```powershell
-pnpm --filter @latex-renderer/frontend check
-pnpm --filter @latex-renderer/frontend lint
-pnpm --filter @latex-renderer/frontend test
-pnpm --filter @latex-renderer/frontend test:e2e
-pnpm --filter @latex-renderer/frontend build
+bun run --cwd frontend check
+bun run --cwd frontend lint
+bun run --cwd frontend test
+bun run --cwd frontend test:e2e
+bun run --cwd frontend build
 ```
 
-For focused development, run the equivalent command from `frontend/` with `pnpm <script>`.
+For focused development, run the equivalent command from `frontend/` with `bun run <script>`.
 
 ### Frontend testing expectations
 

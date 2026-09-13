@@ -22,6 +22,13 @@ Google Cloud OAuth web application client. Keep the client secret readable only 
 user or root; the frontend never receives it. For the current same-domain Nginx setup, use
 `https://cvworkbench.com/api/v1/auth/google/callback` as the callback URI.
 
+To enable LinkedIn sign-in, set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and
+`LINKEDIN_REDIRECT_URI`, using `https://cvworkbench.com/api/v1/auth/linkedin/callback` for the
+same-domain Nginx setup. Full-history CV import also requires the approved LinkedIn import scopes,
+`LINKEDIN_IMPORT_SCOPES`, and the corresponding `LINKEDIN_IMPORT_PROFILE_URL`. Keep the client secret
+readable only by the deployment user or root;
+the frontend never receives it.
+
 ## Start the stack
 
 Log in to GHCR with a token that can read the packages, then pull the release images before

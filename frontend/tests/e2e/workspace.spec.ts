@@ -263,6 +263,106 @@ test('exposes Google sign-in in both account modes', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
 });
 
+test('exposes LinkedIn sign-in in both account modes with the login intent', async ({ page }) => {
+  await page.getByRole('button', { name: 'Log in', exact: true }).click();
+  const loginLink = page.getByRole('link', { name: 'Continue with LinkedIn' });
+  await expect(loginLink).toHaveAttribute(
+    'href',
+    'http://127.0.0.1:18733/api/v1/auth/linkedin/start?intent=login'
+  );
+
+  await page.getByRole('button', { name: 'Close account form' }).click();
+  await page.getByRole('button', { name: 'Register', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Continue with LinkedIn' })).toBeVisible();
+});
+
+test('flushes the draft before LinkedIn import, then lets the user keep the current CV', async ({
+  page
+}) => {
+  const requestOrder: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v1/cv/session') && request.method() === 'PUT') {
+      requestOrder.push('autosave');
+    }
+    if (request.url().includes('/api/v1/auth/linkedin/start')) requestOrder.push('linkedin');
+  });
+
+  await page.getByLabel(/Full name/).fill('Current CV');
+  await page.getByRole('button', { name: 'Import from LinkedIn', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Review LinkedIn import' })).toBeVisible();
+  await expect(page).toHaveURL('http://127.0.0.1:5173/app');
+  expect(requestOrder).toEqual(['autosave', 'linkedin']);
+
+  await expect(page.getByText('The current CV will be replaced')).toBeVisible();
+  await page.getByRole('button', { name: 'Keep current CV' }).click();
+  await expect(page.getByRole('dialog', { name: 'Review LinkedIn import' })).toBeHidden();
+  await expect(page.getByLabel(/Full name/)).toHaveValue('Current CV');
+});
+
+test('discards a pending LinkedIn import without changing the current CV', async ({ page }) => {
+  await page.getByLabel(/Full name/).fill('Current CV');
+  await page.getByRole('button', { name: 'Import from LinkedIn', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Review LinkedIn import' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Discard import' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('Your current CV was not changed.')).toBeVisible();
+  await expect(page.getByLabel(/Full name/)).toHaveValue('Current CV');
+});
+
+test('replaces the current CV and resets the rendered preview after LinkedIn import', async ({
+  page
+}) => {
+  await page.getByLabel(/Full name/).fill('Current CV');
+  await page.getByLabel('Email').fill('current@example.com');
+  await page.getByRole('button', { name: 'Preview', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Rendered preview' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Import from LinkedIn', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Review LinkedIn import' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('LinkedIn Imported Profile');
+  await dialog.getByRole('button', { name: 'Replace current CV' }).click();
+
+  await expect(
+    page.getByText('LinkedIn import applied. Your current CV was replaced.')
+  ).toBeVisible();
+  await expect(page.getByLabel(/Full name/)).toHaveValue('LinkedIn Imported Profile');
+  await expect(page.getByRole('region', { name: 'Rendered preview' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Start with the essentials' })).toBeVisible();
+  await expect(page).toHaveURL('http://127.0.0.1:5173/app');
+});
+
+test('keeps the LinkedIn review open when applying the import conflicts', async ({ page }) => {
+  await page.route('**/api/v1/cv/import/linkedin/pending/*/apply', async (route) => {
+    await route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'version_conflict', message: 'Draft changed elsewhere.' })
+    });
+  });
+  await page.getByLabel(/Full name/).fill('Current CV');
+  await page.getByRole('button', { name: 'Import from LinkedIn', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Review LinkedIn import' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Replace current CV' }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toHaveText(
+    'Your CV changed while this import was open. The current CV was not replaced.'
+  );
+  await expect(page.getByLabel(/Full name/)).toHaveValue('Current CV');
+});
+
+test('keeps LinkedIn review usable at 390px wide', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByLabel(/Full name/).fill('Current CV');
+  await page.getByRole('button', { name: 'Import from LinkedIn', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Review LinkedIn import' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Replace current CV' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
 test('flushes pending autosave before Google redirect and consumes success state', async ({
   page
 }) => {

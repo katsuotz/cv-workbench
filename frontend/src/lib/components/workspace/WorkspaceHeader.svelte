@@ -12,6 +12,7 @@
   export let authBusy: boolean;
   export let authNotice: string;
   export let googleStartUrl: string;
+  export let linkedInStartUrl: string;
   export let advanced: boolean;
   export let onAuthMode: (mode: 'login' | 'register') => void;
   export let onAuthOpenChange: (open: boolean) => void;
@@ -20,6 +21,7 @@
   export let onNameChange: (value: string) => void;
   export let onSubmitAuth: () => void;
   export let onGoogleAuth: (event: MouseEvent) => void | Promise<void>;
+  export let onLinkedInAuth: (event: MouseEvent) => void | Promise<void>;
   export let onLogout: () => void;
   export let onToggleAdvanced: () => void;
 </script>
@@ -106,6 +108,14 @@
               disabled={authBusy}
               onClick={onGoogleAuth}>
               Continue with Google
+            </ButtonLink>
+            <ButtonLink
+              href={linkedInStartUrl}
+              variant="secondary"
+              className="linkedin-auth"
+              disabled={authBusy}
+              onClick={onLinkedInAuth}>
+              Continue with LinkedIn
             </ButtonLink>
             <Button
               variant="text"
@@ -273,6 +283,12 @@
   :global(.google-auth) {
     width: 100%;
     margin-top: 12px;
+    text-transform: none;
+  }
+
+  :global(.linkedin-auth) {
+    width: 100%;
+    margin-top: 8px;
     text-transform: none;
   }
 

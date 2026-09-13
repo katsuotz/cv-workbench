@@ -8,7 +8,14 @@ use serde::Deserialize;
 
 use super::{
     google::{GOOGLE_STATE_COOKIE, clear_state_cookie_header, state_cookie_header},
-    model::{AccountResponse, AnonymousSessionResponse, LoginRequest, Principal, RegisterRequest},
+    linkedin::{
+        LINKEDIN_STATE_COOKIE, clear_state_cookie_header as clear_linkedin_state_cookie_header,
+        state_cookie_header as linkedin_state_cookie_header,
+    },
+    model::{
+        AccountResponse, AnonymousSessionResponse, LinkedInIntent, LoginRequest, Principal,
+        RegisterRequest,
+    },
     service::{ANONYMOUS_COOKIE, AUTH_COOKIE, bearer_token as parsed_bearer_token, cookie_value},
 };
 use crate::{AppState, config::Config, error::AppError};
@@ -174,6 +181,131 @@ pub async fn google_callback(
     ))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct LinkedInStartQuery {
+    pub intent: Option<String>,
+}
+
+pub async fn linkedin_start(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<LinkedInStartQuery>,
+) -> Result<(HeaderMap, Redirect), AppError> {
+    validate_origin(&headers, &state.config, true)?;
+    let intent = match query.intent.as_deref() {
+        Some("login") => LinkedInIntent::Login,
+        Some("import") => LinkedInIntent::Import,
+        _ => {
+            return Err(AppError::BadRequest(
+                "intent must be login or import".into(),
+            ));
+        }
+    };
+    let (anonymous_session_id, authenticated_user_id) =
+        match supplied_principal(&state, &headers).await? {
+            Some(Principal::Anonymous { session_id }) => (Some(session_id), None),
+            Some(Principal::User { user_id, .. }) if intent == LinkedInIntent::Import => {
+                (None, Some(user_id))
+            }
+            Some(Principal::User { .. }) => {
+                return Err(AppError::Conflict("an account is already signed in".into()));
+            }
+            None => (None, None),
+        };
+    let authorization = state
+        .linkedin
+        .start(intent, anonymous_session_id, authenticated_user_id)
+        .await?;
+    let mut response_headers = HeaderMap::new();
+    response_headers.append(
+        header::SET_COOKIE,
+        linkedin_state_cookie_header(&authorization.state, state.config.cookie_secure)?,
+    );
+    Ok((response_headers, Redirect::temporary(&authorization.url)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LinkedInCallbackQuery {
+    pub state: Option<String>,
+    pub code: Option<String>,
+    pub error: Option<String>,
+}
+
+pub async fn linkedin_callback(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<LinkedInCallbackQuery>,
+) -> Result<(HeaderMap, Redirect), AppError> {
+    if query.error.is_some() {
+        let consumed = state
+            .linkedin
+            .cancel(
+                query.state.as_deref().unwrap_or_default(),
+                cookie_value(&headers, LINKEDIN_STATE_COOKIE),
+            )
+            .await
+            .is_ok();
+        return Ok(linkedin_error_redirect(
+            &state,
+            "LinkedIn sign-in was cancelled.",
+            consumed,
+        ));
+    }
+    let code = match query.code.as_deref().filter(|code| !code.is_empty()) {
+        Some(code) => code,
+        None => {
+            return Ok(linkedin_error_redirect(
+                &state,
+                "LinkedIn sign-in could not be completed.",
+                false,
+            ));
+        }
+    };
+    let callback = match state
+        .linkedin
+        .callback(
+            query.state.as_deref().unwrap_or_default(),
+            cookie_value(&headers, LINKEDIN_STATE_COOKIE),
+            code,
+        )
+        .await
+    {
+        Ok(callback) => callback,
+        Err(error) => {
+            tracing::warn!(error = %error, "LinkedIn sign-in failed");
+            return Ok(linkedin_error_redirect(
+                &state,
+                "LinkedIn sign-in could not be completed.",
+                true,
+            ));
+        }
+    };
+    let mut response_headers = HeaderMap::new();
+    if let Some(session) = callback.auth_session {
+        response_headers.extend(auth_cookie_headers(&state.config, &session.token));
+    }
+    response_headers.append(
+        header::SET_COOKIE,
+        clear_linkedin_state_cookie_header(state.config.cookie_secure)?,
+    );
+    if callback.intent == LinkedInIntent::Import {
+        let profile = callback.profile.as_ref().ok_or_else(|| {
+            AppError::BadRequest(
+                "LinkedIn full-profile import returned no approved profile data".into(),
+            )
+        })?;
+        state
+            .cv_import
+            .create_pending(callback.user.id, profile)
+            .await?;
+        return Ok((response_headers, linkedin_import_redirect(&state)?));
+    }
+    Ok((
+        response_headers,
+        linkedin_frontend_redirect(&state, "success", None)?,
+    ))
+}
+
 fn google_error_redirect(
     state: &AppState,
     message: &str,
@@ -190,9 +322,57 @@ fn google_error_redirect(
     (response_headers, redirect)
 }
 
+fn linkedin_error_redirect(
+    state: &AppState,
+    message: &str,
+    clear_state: bool,
+) -> (HeaderMap, Redirect) {
+    let mut response_headers = HeaderMap::new();
+    if clear_state {
+        if let Ok(cookie) = clear_linkedin_state_cookie_header(state.config.cookie_secure) {
+            response_headers.append(header::SET_COOKIE, cookie);
+        }
+    }
+    let redirect = linkedin_frontend_redirect(state, "error", Some(message))
+        .unwrap_or_else(|_| Redirect::temporary("/app?auth=error&provider=linkedin"));
+    (response_headers, redirect)
+}
+
+fn linkedin_import_redirect(state: &AppState) -> Result<Redirect, AppError> {
+    frontend_redirect_with_provider(state, "success", "linkedin", true, None)
+}
+
+fn linkedin_frontend_redirect(
+    state: &AppState,
+    result: &str,
+    message: Option<&str>,
+) -> Result<Redirect, AppError> {
+    frontend_redirect_with_provider(state, result, "linkedin", false, message)
+}
+
 fn frontend_redirect(
     state: &AppState,
     result: &str,
+    message: Option<&str>,
+) -> Result<Redirect, AppError> {
+    frontend_redirect_with_options(state, result, None, false, message)
+}
+
+fn frontend_redirect_with_provider(
+    state: &AppState,
+    result: &str,
+    provider: &str,
+    import_ready: bool,
+    message: Option<&str>,
+) -> Result<Redirect, AppError> {
+    frontend_redirect_with_options(state, result, Some(provider), import_ready, message)
+}
+
+fn frontend_redirect_with_options(
+    state: &AppState,
+    result: &str,
+    provider: Option<&str>,
+    import_ready: bool,
     message: Option<&str>,
 ) -> Result<Redirect, AppError> {
     let origin = state
@@ -206,6 +386,12 @@ fn frontend_redirect(
     {
         let mut query = url.query_pairs_mut();
         query.append_pair("auth", result);
+        if let Some(provider) = provider {
+            query.append_pair("provider", provider);
+        }
+        if import_ready {
+            query.append_pair("import", "ready");
+        }
         if let Some(message) = message {
             query.append_pair("message", message);
         }
@@ -314,6 +500,7 @@ mod tests {
             session_ttl: Duration::from_secs(3600),
             cookie_secure: false,
             google: None,
+            linkedin: None,
         }
     }
 

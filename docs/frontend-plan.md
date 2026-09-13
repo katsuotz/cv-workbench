@@ -18,6 +18,7 @@ The app is a SvelteKit workspace with a backend-backed document and compile flow
 - Typed `PreviewAdapter` boundary and `BackendPreviewAdapter` for document persistence, compile-job polling, diagnostics, and PDF artifact loading.
 - Cookie-backed anonymous and account sessions, server CV draft bootstrap/autosave with optimistic versions, project/document restoration, revision persistence, compile-job polling/cancellation, structured diagnostics, and authenticated PDF artifact loading through the backend API.
 - The workspace account panel supports password authentication and Google sign-in through the backend OAuth redirect; pending anonymous edits are flushed before navigation and the callback result is surfaced locally.
+- The workspace account panel also supports LinkedIn sign-in. The Summary section can start an OAuth-backed LinkedIn import, review the server-provided pending profile, and replace the current CV only after confirmation.
 - PDF.js rendering for backend-produced PDF previews; deterministic Playwright tests use an HTTP fixture that implements the same backend contract and returns a valid PDF.
 - Preview controller cancellation and monotonically increasing request IDs so stale results cannot replace newer state; the last successful preview remains available when a later request fails.
 - Structured diagnostics and live status announcements.
@@ -29,6 +30,7 @@ The app is a SvelteKit workspace with a backend-backed document and compile flow
 - Keep base components and utilities free of transport, compiler, CV-session, and workspace orchestration dependencies. Use the repository's Svelte 4/5-compatible legacy syntax until the frontend adopts a coordinated runes migration.
 - Keep route entrypoints and the workspace shell focused on orchestration. Feature-specific markup belongs in `components/workspace/` and `landing/`; repeated controls and patterns belong in `components/base/`, with direct native controls reserved for base controls and specialized integrations.
 - The backend owns the read-only template catalog and render operation. The frontend loads catalog metadata and first-page preview PDFs through a dedicated templates API, then persists selected and last-generated template IDs with the CV draft.
+- LinkedIn import transport remains in a dedicated API module. Imported data is reviewed in a workspace component, applied through the optimistic CV-session boundary, and never placed in callback query parameters.
 
 The adapter seam keeps transport and compiler details out of the Svelte components. Real TeX semantics, package support, PDF loading, and network persistence are provided by the backend integration.
 

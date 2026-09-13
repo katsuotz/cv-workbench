@@ -82,6 +82,38 @@ pub struct GoogleLoginState {
     pub anonymous_session_id: Option<Uuid>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LinkedInIntent {
+    Login,
+    Import,
+}
+
+impl LinkedInIntent {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Login => "login",
+            Self::Import => "import",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LinkedInIdentity {
+    pub subject: String,
+    pub email: Option<String>,
+    pub email_verified: bool,
+    pub display_name: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LinkedInLoginState {
+    pub intent: LinkedInIntent,
+    pub nonce: String,
+    pub pkce_verifier: String,
+    pub anonymous_session_id: Option<Uuid>,
+    pub authenticated_user_id: Option<Uuid>,
+}
+
 #[derive(Clone, Debug)]
 pub struct AuthSessionResponse {
     pub account: AccountResponse,

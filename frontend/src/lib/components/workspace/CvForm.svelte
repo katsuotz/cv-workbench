@@ -32,6 +32,9 @@
   export let onAddProfile: () => void;
   export let onRemoveProfile: (id: string) => void;
   export let onMoveProfile: (index: number, direction: -1 | 1) => void;
+  export let importBusy = false;
+  export let importNotice = '';
+  export let onImportFromLinkedIn: (event: MouseEvent) => void | Promise<void>;
   export let onPrevious: () => void;
   export let onNext: () => void;
 
@@ -71,7 +74,10 @@
         {fieldError}
         {onAddProfile}
         {onRemoveProfile}
-        {onMoveProfile} />
+        {onMoveProfile}
+        {importBusy}
+        {importNotice}
+        {onImportFromLinkedIn} />
     {:else if activeSection === 'experience'}
       <ExperienceSection
         {data}

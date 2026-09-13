@@ -6,6 +6,7 @@ use axum::{
     response::Response,
 };
 
+use super::import::ApplyPendingImportRequest;
 use super::model::{
     CvSessionResponse, RenderCvRequest, RenderCvResponse, SaveCvSessionRequest, TemplateCatalogItem,
 };
@@ -71,6 +72,51 @@ pub async fn render_cv(
     validate_origin(&headers, &state.config, true)?;
     state.sessions.authenticate(&headers).await?;
     Ok(Json(state.cv_render.render(request).await?))
+}
+
+pub async fn get_pending_imports(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<super::model::PendingCvImportResponse>, AppError> {
+    let principal = state.sessions.authenticate(&headers).await?;
+    let pending = state
+        .cv_import
+        .list_pending(&principal)
+        .await?
+        .into_iter()
+        .next()
+        .ok_or(AppError::NotFound)?;
+    Ok(Json(pending))
+}
+
+pub async fn apply_pending_import(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(import_id): Path<uuid::Uuid>,
+    Json(request): Json<ApplyPendingImportRequest>,
+) -> Result<Json<CvSessionResponse>, AppError> {
+    validate_origin(&headers, &state.config, true)?;
+    let principal = state.sessions.authenticate(&headers).await?;
+    Ok(Json(
+        state
+            .cv_import
+            .apply_pending(&principal, import_id, request.expected_version)
+            .await?,
+    ))
+}
+
+pub async fn delete_pending_import(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(import_id): Path<uuid::Uuid>,
+) -> Result<StatusCode, AppError> {
+    validate_origin(&headers, &state.config, true)?;
+    let principal = state.sessions.authenticate(&headers).await?;
+    state
+        .cv_import
+        .delete_pending(&principal, import_id)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn get_draft(

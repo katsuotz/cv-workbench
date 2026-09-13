@@ -34,6 +34,7 @@ pub struct Config {
     pub session_ttl: Duration,
     pub cookie_secure: bool,
     pub google: Option<GoogleConfig>,
+    pub linkedin: Option<LinkedInConfig>,
 }
 
 #[derive(Clone, Debug)]
@@ -41,6 +42,20 @@ pub struct GoogleConfig {
     pub client_id: String,
     pub client_secret: String,
     pub redirect_uri: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct LinkedInConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_uri: String,
+    pub import: Option<LinkedInImportConfig>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LinkedInImportConfig {
+    pub scopes: String,
+    pub profile_endpoint: String,
 }
 
 impl Config {
@@ -101,6 +116,39 @@ impl Config {
             (_, _, None) => return Err(ConfigError::Missing("GOOGLE_REDIRECT_URI")),
         };
 
+        let linkedin = match (
+            env::var("LINKEDIN_CLIENT_ID").ok(),
+            env::var("LINKEDIN_CLIENT_SECRET").ok(),
+            env::var("LINKEDIN_REDIRECT_URI").ok(),
+        ) {
+            (None, None, None) => None,
+            (Some(client_id), Some(client_secret), Some(redirect_uri)) => {
+                let import = match (
+                    non_empty_env("LINKEDIN_IMPORT_SCOPES"),
+                    non_empty_env("LINKEDIN_IMPORT_PROFILE_URL"),
+                ) {
+                    (None, None) => None,
+                    (Some(scopes), Some(profile_endpoint)) => Some(LinkedInImportConfig {
+                        scopes,
+                        profile_endpoint,
+                    }),
+                    (None, Some(_)) => return Err(ConfigError::Missing("LINKEDIN_IMPORT_SCOPES")),
+                    (Some(_), None) => {
+                        return Err(ConfigError::Missing("LINKEDIN_IMPORT_PROFILE_URL"));
+                    }
+                };
+                Some(LinkedInConfig {
+                    client_id,
+                    client_secret,
+                    redirect_uri,
+                    import,
+                })
+            }
+            (None, _, _) => return Err(ConfigError::Missing("LINKEDIN_CLIENT_ID")),
+            (_, None, _) => return Err(ConfigError::Missing("LINKEDIN_CLIENT_SECRET")),
+            (_, _, None) => return Err(ConfigError::Missing("LINKEDIN_REDIRECT_URI")),
+        };
+
         Ok(Self {
             database_url,
             bind_addr,
@@ -111,12 +159,17 @@ impl Config {
             session_ttl,
             cookie_secure,
             google,
+            linkedin,
         })
     }
 
     pub fn origin_is_allowed(&self, origin: &HeaderValue) -> bool {
         origin == &self.frontend_origin
     }
+}
+
+fn non_empty_env(name: &'static str) -> Option<String> {
+    env::var(name).ok().filter(|value| !value.trim().is_empty())
 }
 
 fn parse<T>(name: &'static str, value: String) -> Result<T, ConfigError>

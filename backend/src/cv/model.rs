@@ -85,7 +85,15 @@ pub struct CvSessionResponse {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
+pub struct PendingCvImportResponse {
+    pub id: Uuid,
+    pub data: CvData,
+    pub created_at: String,
+    pub expires_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CvData {
     #[serde(default)]
@@ -106,12 +114,12 @@ pub struct CvData {
     pub projects: Vec<Project>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Identity {
-    #[serde(default, alias = "full_name", alias = "fullName")]
+    #[serde(default, rename = "fullName", alias = "full_name")]
     pub full_name: String,
-    #[serde(default, alias = "professional_titles", alias = "professionalTitles")]
+    #[serde(default, rename = "professionalTitles", alias = "professional_titles")]
     pub professional_titles: String,
     #[serde(default)]
     pub location: String,
@@ -123,7 +131,7 @@ pub struct Identity {
     pub profiles: Vec<ProfileLink>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProfileLink {
     #[serde(default)]
@@ -136,7 +144,7 @@ pub struct ProfileLink {
     pub url: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Experience {
     #[serde(default)]
@@ -161,7 +169,7 @@ pub struct Experience {
     pub tools: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Achievement {
     #[serde(default)]
@@ -176,7 +184,7 @@ pub struct Achievement {
     pub description: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct SkillGroup {
     #[serde(default)]
@@ -187,7 +195,7 @@ pub struct SkillGroup {
     pub skills: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Education {
     #[serde(default)]
@@ -206,7 +214,7 @@ pub struct Education {
     pub gpa: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Certificate {
     #[serde(default)]
@@ -217,11 +225,11 @@ pub struct Certificate {
     pub issuer: String,
     #[serde(default)]
     pub date: String,
-    #[serde(default, alias = "credential_url", alias = "credentialUrl")]
+    #[serde(default, rename = "credentialUrl", alias = "credential_url")]
     pub credential_url: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Project {
     #[serde(default)]

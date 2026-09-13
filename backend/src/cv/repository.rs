@@ -4,8 +4,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use super::model::{
-    CvSessionResponse, CvTemplateRecord, DocumentMetadata, ProjectMetadata, RevisionMetadata,
-    SaveCvSessionInput,
+    CvData, CvSessionResponse, CvTemplateRecord, DocumentMetadata, PendingCvImportResponse,
+    ProjectMetadata, RevisionMetadata, SaveCvSessionInput,
 };
 use crate::{error::AppError, sessions::model::Principal};
 
@@ -17,6 +17,24 @@ pub trait CvRepository: Send + Sync {
         principal: &Principal,
         expected_version: i64,
         input: &SaveCvSessionInput,
+    ) -> Result<CvSessionResponse, AppError>;
+
+    async fn create_pending_import(
+        &self,
+        user_id: Uuid,
+        data: &CvData,
+        expires_at: OffsetDateTime,
+    ) -> Result<PendingCvImportResponse, AppError>;
+    async fn list_pending_imports(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<PendingCvImportResponse>, AppError>;
+    async fn delete_pending_import(&self, user_id: Uuid, import_id: Uuid) -> Result<(), AppError>;
+    async fn apply_pending_import(
+        &self,
+        user_id: Uuid,
+        import_id: Uuid,
+        expected_version: i64,
     ) -> Result<CvSessionResponse, AppError>;
 }
 
@@ -144,6 +162,124 @@ impl CvRepository for PgCvRepository {
         transaction.commit().await?;
         self.get_by_id(principal, draft_id).await
     }
+
+    async fn create_pending_import(
+        &self,
+        user_id: Uuid,
+        data: &CvData,
+        expires_at: OffsetDateTime,
+    ) -> Result<PendingCvImportResponse, AppError> {
+        let value = serde_json::to_value(data).map_err(|error| {
+            AppError::Internal(format!("failed to serialize CV import: {error}"))
+        })?;
+        let row = sqlx::query(
+            "INSERT INTO linkedin_pending_imports (user_id, data, expires_at) VALUES ($1, $2, $3) RETURNING id, data, created_at, expires_at",
+        )
+        .bind(user_id)
+        .bind(value)
+        .bind(expires_at)
+        .fetch_one(&self.pool)
+        .await?;
+        pending_from_row(row)
+    }
+
+    async fn list_pending_imports(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<PendingCvImportResponse>, AppError> {
+        let rows = sqlx::query(
+            "SELECT id, data, created_at, expires_at FROM linkedin_pending_imports WHERE user_id = $1 AND expires_at > now() ORDER BY created_at DESC",
+        )
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter().map(pending_from_row).collect()
+    }
+
+    async fn delete_pending_import(&self, user_id: Uuid, import_id: Uuid) -> Result<(), AppError> {
+        let result = sqlx::query(
+            "DELETE FROM linkedin_pending_imports WHERE id = $1 AND user_id = $2 AND expires_at > now()",
+        )
+        .bind(import_id)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await?;
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound);
+        }
+        Ok(())
+    }
+
+    async fn apply_pending_import(
+        &self,
+        user_id: Uuid,
+        import_id: Uuid,
+        expected_version: i64,
+    ) -> Result<CvSessionResponse, AppError> {
+        if expected_version < 0 {
+            return Err(AppError::BadRequest(
+                "cv session version cannot be negative".into(),
+            ));
+        }
+        let mut transaction = self.pool.begin().await?;
+        let pending = sqlx::query(
+            "SELECT data FROM linkedin_pending_imports WHERE id = $1 AND user_id = $2 AND expires_at > now() FOR UPDATE",
+        )
+        .bind(import_id)
+        .bind(user_id)
+        .fetch_optional(&mut *transaction)
+        .await?
+        .ok_or(AppError::NotFound)?;
+        let data: serde_json::Value = pending.try_get("data")?;
+        let existing = sqlx::query(
+            "SELECT c.id, c.project_id, c.document_id, c.version FROM cv_drafts c JOIN projects p ON p.id = c.project_id JOIN documents d ON d.id = c.document_id AND d.project_id = p.id WHERE p.user_id = $1 ORDER BY c.updated_at DESC LIMIT 1 FOR UPDATE",
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *transaction)
+        .await?;
+        let draft_id = if let Some(row) = existing {
+            let draft_id: Uuid = row.try_get("id")?;
+            let current_version: i64 = row.try_get("version")?;
+            if expected_version != current_version {
+                return Err(AppError::Conflict("cv session version is stale".into()));
+            }
+            sqlx::query(
+                "UPDATE cv_drafts SET data = $1, generated_source = NULL, generated_template_id = NULL, generated_at = NULL, fingerprint = NULL, version = version + 1, updated_at = now() WHERE id = $2",
+            )
+            .bind(data)
+            .bind(draft_id)
+            .execute(&mut *transaction)
+            .await?;
+            draft_id
+        } else {
+            if expected_version != 0 {
+                return Err(AppError::Conflict("cv session version is stale".into()));
+            }
+            let (project_id, document_id) =
+                ensure_import_document(&mut transaction, user_id).await?;
+            sqlx::query_scalar(
+                "INSERT INTO cv_drafts (project_id, document_id, schema_version, template_id, data) VALUES ($1, $2, 1, 'editorial-v1', $3) RETURNING id",
+            )
+            .bind(project_id)
+            .bind(document_id)
+            .bind(data)
+            .fetch_one(&mut *transaction)
+            .await?
+        };
+        sqlx::query("DELETE FROM linkedin_pending_imports WHERE id = $1")
+            .bind(import_id)
+            .execute(&mut *transaction)
+            .await?;
+        transaction.commit().await?;
+        self.get_by_id(
+            &Principal::User {
+                user_id,
+                auth_session_id: Uuid::nil(),
+            },
+            draft_id,
+        )
+        .await
+    }
 }
 
 impl PgCvRepository {
@@ -241,6 +377,52 @@ async fn ensure_document(
     }
 }
 
+async fn ensure_import_document(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_id: Uuid,
+) -> Result<(Uuid, Uuid), AppError> {
+    let project_id: Uuid = if let Some(id) = sqlx::query_scalar(
+        "SELECT id FROM projects WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 1",
+    )
+    .bind(user_id)
+    .fetch_optional(&mut **transaction)
+    .await?
+    {
+        id
+    } else {
+        sqlx::query_scalar(
+            "INSERT INTO projects (user_id, session_id, name) VALUES ($1, NULL, 'My CV') RETURNING id",
+        )
+        .bind(user_id)
+        .fetch_one(&mut **transaction)
+        .await?
+    };
+    let document_id: Uuid = if let Some(id) = sqlx::query_scalar(
+        "SELECT id FROM documents WHERE project_id = $1 ORDER BY updated_at DESC LIMIT 1",
+    )
+    .bind(project_id)
+    .fetch_optional(&mut **transaction)
+    .await?
+    {
+        id
+    } else {
+        let id: Uuid = sqlx::query_scalar(
+            "INSERT INTO documents (project_id, name) VALUES ($1, 'cv.tex') RETURNING id",
+        )
+        .bind(project_id)
+        .fetch_one(&mut **transaction)
+        .await?;
+        sqlx::query(
+            "INSERT INTO document_revisions (document_id, revision_number, source) VALUES ($1, 1, '')",
+        )
+        .bind(id)
+        .execute(&mut **transaction)
+        .await?;
+        id
+    };
+    Ok((project_id, document_id))
+}
+
 fn owner_columns(principal: &Principal) -> (Option<Uuid>, Option<Uuid>) {
     (principal.user_id(), principal.anonymous_session_id())
 }
@@ -302,6 +484,18 @@ fn response_from_row(row: PgRow) -> Result<CvSessionResponse, AppError> {
         version: row.try_get("version")?,
         created_at: format_time(row.try_get("created_at")?),
         updated_at: format_time(row.try_get("updated_at")?),
+    })
+}
+
+fn pending_from_row(row: PgRow) -> Result<PendingCvImportResponse, AppError> {
+    let value: serde_json::Value = row.try_get("data")?;
+    let data = serde_json::from_value(value)
+        .map_err(|error| AppError::Internal(format!("stored CV import is invalid: {error}")))?;
+    Ok(PendingCvImportResponse {
+        id: row.try_get("id")?,
+        data,
+        created_at: format_time(row.try_get("created_at")?),
+        expires_at: format_time(row.try_get("expires_at")?),
     })
 }
 

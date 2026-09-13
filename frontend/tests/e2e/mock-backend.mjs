@@ -4,6 +4,7 @@ const port = 18733;
 const documents = new Map();
 const jobs = new Map();
 const cvSessions = new Map();
+const pendingImports = new Map();
 const users = new Map();
 let sequence = 0;
 const templates = [
@@ -142,6 +143,55 @@ const server = createServer(async (request, response) => {
     response.end();
     return;
   }
+  if (request.method === 'GET' && path === '/api/v1/auth/linkedin/start') {
+    const previousToken = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
+    const intent = url.searchParams.get('intent') === 'import' ? 'import' : 'login';
+    const user = { id: id('user'), email: 'linkedin@example.com', name: 'LinkedIn User' };
+    const userToken = id('user-session');
+    users.set(userToken, user);
+    if (previousToken && cvSessions.has(previousToken)) {
+      cvSessions.set(userToken, cvSessions.get(previousToken));
+    }
+    if (intent === 'import') {
+      pendingImports.set(userToken, {
+        id: id('linkedin-import'),
+        data: {
+          identity: {
+            fullName: 'LinkedIn Imported Profile',
+            professionalTitles: 'Staff engineer',
+            location: 'Remote',
+            email: 'imported@example.com',
+            phone: '',
+            profiles: [
+              {
+                id: id('profile'),
+                type: 'linkedin',
+                label: 'LinkedIn',
+                url: 'https://www.linkedin.com/in/imported'
+              }
+            ]
+          },
+          summary: 'Profile imported from LinkedIn.',
+          experience: [],
+          achievements: [],
+          skills: [],
+          education: [],
+          certificates: [],
+          projects: []
+        },
+        expires_at: '2099-01-01T00:00:00Z'
+      });
+    }
+    response.writeHead(302, {
+      Location:
+        intent === 'import'
+          ? 'http://127.0.0.1:5173/app?provider=linkedin&import=ready'
+          : 'http://127.0.0.1:5173/app?auth=success&provider=linkedin',
+      'Set-Cookie': `lr_session=${userToken}; Path=/; SameSite=Lax`
+    });
+    response.end();
+    return;
+  }
   if (
     request.method === 'POST' &&
     (path === '/api/v1/auth/login' || path === '/api/v1/auth/register')
@@ -180,6 +230,60 @@ const server = createServer(async (request, response) => {
     const session = { id: id('cv-session'), version: 1, ...input };
     cvSessions.set(sessionId, session);
     json(response, 201, session);
+    return;
+  }
+
+  if (request.method === 'GET' && path === '/api/v1/cv/import/linkedin/pending') {
+    const sessionId = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
+    const pending = sessionId ? pendingImports.get(sessionId) : undefined;
+    json(response, pending ? 200 : 404, pending ?? { code: 'not_found', message: 'Not found' });
+    return;
+  }
+  const pendingImportPath = path.match(/^\/api\/v1\/cv\/import\/linkedin\/pending\/([^/]+)$/);
+  if (pendingImportPath && request.method === 'DELETE') {
+    const sessionId = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
+    const pending = sessionId ? pendingImports.get(sessionId) : undefined;
+    if (!pending || pending.id !== pendingImportPath[1]) {
+      json(response, 404, { code: 'not_found', message: 'Not found' });
+      return;
+    }
+    pendingImports.delete(sessionId);
+    response.writeHead(204, {
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Origin': 'http://127.0.0.1:5173'
+    });
+    response.end();
+    return;
+  }
+  const applyImportPath = path.match(/^\/api\/v1\/cv\/import\/linkedin\/pending\/([^/]+)\/apply$/);
+  if (applyImportPath && request.method === 'POST') {
+    const sessionId = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
+    const pending = sessionId ? pendingImports.get(sessionId) : undefined;
+    const current = sessionId ? cvSessions.get(sessionId) : undefined;
+    const input = await body(request);
+    if (!pending || pending.id !== applyImportPath[1] || !current) {
+      json(response, 404, { code: 'not_found', message: 'Not found' });
+      return;
+    }
+    if (input.expected_version !== current.version) {
+      json(response, 409, {
+        code: 'version_conflict',
+        message: 'Draft changed while import was open.'
+      });
+      return;
+    }
+    const applied = {
+      ...current,
+      data: pending.data,
+      generated_template_id: null,
+      generated_source: '',
+      generated_at: null,
+      fingerprint: '',
+      version: current.version + 1
+    };
+    cvSessions.set(sessionId, applied);
+    pendingImports.delete(sessionId);
+    json(response, 200, applied);
     return;
   }
 

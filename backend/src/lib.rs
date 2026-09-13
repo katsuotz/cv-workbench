@@ -11,16 +11,21 @@ use axum::{
     Router,
     extract::DefaultBodyLimit,
     http::{Method, header},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use sqlx::PgPool;
 use tower_http::{cors::CorsLayer, timeout::TimeoutLayer, trace::TraceLayer};
 
 use compilation::{CompilationService, repository::PgCompilationRepository};
 use config::Config;
-use cv::{CvRenderService, CvService, CvTemplateService, repository::PgCvRepository};
+use cv::{
+    CvImportService, CvRenderService, CvService, CvTemplateService, repository::PgCvRepository,
+};
 use documents::{DocumentService, repository::PgDocumentRepository};
-use sessions::{SessionService, google::GoogleAuthService, repository::PgSessionRepository};
+use sessions::{
+    SessionService, google::GoogleAuthService, linkedin::LinkedInAuthService,
+    repository::PgSessionRepository,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -28,11 +33,13 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub sessions: Arc<SessionService>,
     pub google: Arc<GoogleAuthService>,
+    pub linkedin: Arc<LinkedInAuthService>,
     pub documents: Arc<DocumentService>,
     pub compilation: Arc<CompilationService>,
     pub cv: Arc<CvService>,
     pub cv_templates: Arc<CvTemplateService>,
     pub cv_render: Arc<CvRenderService>,
+    pub cv_import: Arc<CvImportService>,
 }
 
 pub fn router(pool: PgPool, config: Config) -> Router {
@@ -48,9 +55,14 @@ pub fn router(pool: PgPool, config: Config) -> Router {
         time::Duration::seconds(config.session_ttl.as_secs() as i64),
     ));
     let google = Arc::new(GoogleAuthService::new(
-        session_repository,
+        session_repository.clone(),
         time::Duration::seconds(config.session_ttl.as_secs() as i64),
         config.google.clone(),
+    ));
+    let linkedin = Arc::new(LinkedInAuthService::new(
+        session_repository,
+        time::Duration::seconds(config.session_ttl.as_secs() as i64),
+        config.linkedin.clone(),
     ));
     let documents = Arc::new(DocumentService::new(Arc::new(PgDocumentRepository::new(
         pool.clone(),
@@ -61,18 +73,21 @@ pub fn router(pool: PgPool, config: Config) -> Router {
     ));
     let cv_repository = Arc::new(PgCvRepository::new(pool.clone()));
     let cv_templates = Arc::new(CvTemplateService::new(cv_repository.clone()));
-    let cv = Arc::new(CvService::new(cv_repository, cv_templates.clone()));
+    let cv = Arc::new(CvService::new(cv_repository.clone(), cv_templates.clone()));
     let cv_render = Arc::new(CvRenderService::new(cv_templates.clone()));
+    let cv_import = Arc::new(CvImportService::new(cv_repository));
     let state = AppState {
         pool,
         config,
         sessions,
         google,
+        linkedin,
         documents,
         compilation,
         cv,
         cv_templates,
         cv_render,
+        cv_import,
     };
     Router::new()
         .route("/health/live", get(live))
@@ -90,6 +105,14 @@ pub fn router(pool: PgPool, config: Config) -> Router {
         .route(
             "/api/v1/auth/google/callback",
             get(sessions::routes::google_callback),
+        )
+        .route(
+            "/api/v1/auth/linkedin/start",
+            get(sessions::routes::linkedin_start),
+        )
+        .route(
+            "/api/v1/auth/linkedin/callback",
+            get(sessions::routes::linkedin_callback),
         )
         .route("/api/v1/auth/logout", post(sessions::routes::logout))
         .route("/api/v1/auth/me", get(sessions::routes::me))
@@ -127,6 +150,18 @@ pub fn router(pool: PgPool, config: Config) -> Router {
             get(cv::routes::template_preview),
         )
         .route("/api/v1/cv/render", post(cv::routes::render_cv))
+        .route(
+            "/api/v1/cv/import/linkedin/pending",
+            get(cv::routes::get_pending_imports),
+        )
+        .route(
+            "/api/v1/cv/import/linkedin/pending/{import_id}",
+            delete(cv::routes::delete_pending_import),
+        )
+        .route(
+            "/api/v1/cv/import/linkedin/pending/{import_id}/apply",
+            post(cv::routes::apply_pending_import),
+        )
         .with_state(state)
         .layer(DefaultBodyLimit::max(
             2 * cv::template::MAX_RENDER_DATA_BYTES,

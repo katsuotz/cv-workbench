@@ -13,6 +13,9 @@
   export let onAddProfile: () => void;
   export let onRemoveProfile: (id: string) => void;
   export let onMoveProfile: (index: number, direction: -1 | 1) => void;
+  export let importBusy = false;
+  export let importNotice = '';
+  export let onImportFromLinkedIn: (event: MouseEvent) => void | Promise<void>;
 
   const profileTypes = [
     ['website', 'Website'],
@@ -75,6 +78,21 @@
     bind:value={data.summary} />
 </div>
 
+<div class="linkedin-import">
+  <div>
+    <h3>Import from LinkedIn</h3>
+    <p>Review your LinkedIn profile before it replaces this CV.</p>
+  </div>
+  <Button
+    variant="secondary"
+    className="linkedin-import-button"
+    disabled={importBusy}
+    onClick={onImportFromLinkedIn}>
+    {importBusy ? 'Connecting…' : 'Import from LinkedIn'}
+  </Button>
+  {#if importNotice}<p class="linkedin-import-error" role="alert">{importNotice}</p>{/if}
+</div>
+
 <div class="profile-links">
   <div class="profile-links-heading">
     <h3>Profile links</h3>
@@ -134,6 +152,44 @@
     padding-top: 24px;
   }
 
+  .linkedin-import {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-top: 30px;
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+  }
+
+  .linkedin-import h3,
+  .linkedin-import p {
+    margin: 0;
+  }
+
+  .linkedin-import h3 {
+    font-size: 16px;
+  }
+
+  .linkedin-import p:not(.linkedin-import-error) {
+    margin-top: 5px;
+    color: var(--muted-ink);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  :global(.linkedin-import-button) {
+    flex: 0 0 auto;
+    text-transform: none;
+  }
+
+  .linkedin-import-error {
+    flex-basis: 100%;
+    color: var(--danger);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
   .profile-links-heading {
     display: flex;
     align-items: center;
@@ -158,6 +214,16 @@
   }
 
   @media (max-width: 620px) {
+    .linkedin-import {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    :global(.linkedin-import-button) {
+      width: 100%;
+    }
+
     .profile-link-card {
       grid-template-columns: 1fr;
     }

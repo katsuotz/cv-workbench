@@ -17,6 +17,7 @@ This list reflects the remaining work in the current repository.
 - [ ] Add password reset and email verification if accounts become a supported production workflow.
 - [ ] Decide whether MFA, account deletion, and role-based administration are required.
 - [ ] Define session and anonymous-data retention rules, including what happens when an anonymous session expires without registration.
+- [ ] Obtain and maintain the approved LinkedIn profile-data access required for full-history import; ordinary self-service LinkedIn OIDC access only supplies lite identity data.
 
 ## Compiler reliability and security
 

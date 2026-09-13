@@ -15,7 +15,8 @@ The service currently provides anonymous sessions, persisted projects/documents/
 - Each feature keeps its models, routes, repository, and service together. Repositories own SQLx persistence, while services own validation, authorization, and use-case coordination.
 - Repository traits and the existing `Compiler` trait are the explicit dependency-injection boundaries. Concrete PostgreSQL repositories and services are composed in `lib.rs`; no workspace crates are needed yet.
 - PostgreSQL generates UUIDv7 identifiers with `uuidv7()` and stores documents, jobs, diagnostics, and bounded PDF artifacts.
-- Account sessions support password authentication and Google OpenID Connect authorization-code sign-in. Google identities are keyed by the provider subject, and verified email matching links them to an existing account.
+- Account sessions support password authentication and Google and LinkedIn OpenID Connect authorization-code sign-in. Provider identities are keyed by provider subject, and verified email matching links them to an existing account.
+- LinkedIn import uses a short-lived, server-side pending payload and an approval-gated profile provider; provider access tokens are never returned to the browser or persisted.
 - The first compile profile is `cv-xelatex`; the worker invokes XeLaTeX with `-no-shell-escape`, bounded time, temporary workspaces, and cleanup.
 - Redis is deferred until distributed queue or rate-limit requirements justify it.
 
@@ -31,6 +32,7 @@ backend/src/
 │   ├── mod.rs
 │   ├── model.rs
 │   ├── google.rs
+│   ├── linkedin.rs
 │   ├── repository.rs
 │   ├── service.rs
 │   └── routes.rs
@@ -71,6 +73,8 @@ The backend remains one crate. Additional workspace crates should be introduced 
 - `POST /api/v1/sessions/anonymous`
 - `GET /api/v1/auth/google/start`
 - `GET /api/v1/auth/google/callback`
+- `GET /api/v1/auth/linkedin/start?intent=login|import`
+- `GET /api/v1/auth/linkedin/callback`
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
@@ -86,12 +90,17 @@ The backend remains one crate. Additional workspace crates should be introduced 
 - `GET /api/v1/cv/templates`
 - `GET /api/v1/cv/templates/{id}/preview`
 - `POST /api/v1/cv/render`
+- `GET /api/v1/cv/import/linkedin/pending`
+- `POST /api/v1/cv/import/linkedin/pending/{id}/apply`
+- `DELETE /api/v1/cv/import/linkedin/pending/{id}`
 
 Compile jobs return queued/running/succeeded/failed/cancelled states and structured diagnostics with optional file, line, and column locations. Successful jobs expose PDF artifact metadata and an authenticated artifact endpoint.
 
 `POST /api/v1/cv/render` accepts typed CV data and an active `template_id`, applies backend LaTeX escaping, enforces the 1 MiB data and 512 KiB source limits, and returns generated source and timestamp. `cv_drafts.generated_template_id` records which template produced persisted source; `template_id` remains the current selection. The legacy `default` identifier is normalized to `editorial-v1`.
 
 Google sign-in uses the same account cookie and requests only `openid email profile`. The backend validates state, nonce, S256 PKCE, the Google issuer and audience, token lifetime, immutable provider subject, and `email_verified`. A successful Google sign-in creates or links an account and transfers the current anonymous project atomically. Google-only accounts have no usable password until a future password-setting flow is added.
+
+LinkedIn login uses the same account cookie, state protections, anonymous transfer, and provider-subject linking. Login requests `openid profile email`; import uses separately configured approved scopes alongside those OIDC identity scopes and fetches a normalized profile server-side. A pending import expires after fifteen minutes. Applying an import requires the current CV version and atomically replaces CV data while clearing generated preview metadata.
 
 ## Remaining backend work
 
@@ -100,6 +109,7 @@ Google sign-in uses the same account cookie and requests only `openid email prof
 - Add artifact retention cleanup and anonymous quota enforcement.
 - Add deployment configuration, metrics, CI, and PostgreSQL integration tests.
 - Continue frontend integration hardening, richer diagnostic navigation, and production deployment checks.
+- Provision an approved LinkedIn profile-data product and configure its import scopes and endpoint before enabling full-history import in production.
 - Add password reset, password setup for Google-only accounts, email verification, MFA, and role-based administration only if the product requires them.
 
 ## Verification

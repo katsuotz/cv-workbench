@@ -45,6 +45,8 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 - `POST /api/v1/auth/login`
 - `GET /api/v1/auth/google/start`
 - `GET /api/v1/auth/google/callback`
+- `GET /api/v1/auth/linkedin/start?intent=login|import`
+- `GET /api/v1/auth/linkedin/callback`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 - `POST /api/v1/projects`
@@ -61,10 +63,17 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 - `GET /api/v1/cv/templates`
 - `GET /api/v1/cv/templates/{id}/preview`
 - `POST /api/v1/cv/render`
+- `GET /api/v1/cv/import/linkedin/pending`
+- `POST /api/v1/cv/import/linkedin/pending/{id}/apply`
+- `DELETE /api/v1/cv/import/linkedin/pending/{id}`
 
 Account registration and password login use Argon2id password hashes and set an HttpOnly `lr_session` cookie. Registering while an anonymous session is supplied transfers that session's projects, documents, revisions, and CV draft to the new account atomically. Anonymous bearer sessions remain supported for existing clients.
 
 Google OIDC login is enabled when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` are all set. The redirect URI must exactly match the callback URI configured in Google Cloud Console. The flow uses a one-time server-side state record, an HttpOnly state cookie, nonce validation, and S256 PKCE. Google ID tokens must have a valid Google signature, issuer, audience, expiry, nonce, and verified email. A verified Google email links to an existing account or creates a Google-only account with a nullable password; a supplied anonymous session is transferred atomically on successful callback. The optional Google display name is retained when the account has no existing display name.
+
+LinkedIn login is enabled when `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and `LINKEDIN_REDIRECT_URI` are all set. Login requests only the OpenID Connect `openid profile email` scopes. The flow uses a one-time server-side state record, an HttpOnly state cookie, nonce validation, S256 PKCE, and signature-checked LinkedIn ID tokens. A usable verified email is required when a LinkedIn subject must be linked by email or a new account must be created. An authenticated import can link a new LinkedIn subject to the current account; a subject already linked to another account returns `409 Conflict`.
+
+Full-profile import is approval-gated. It is available only when `LINKEDIN_IMPORT_SCOPES` and `LINKEDIN_IMPORT_PROFILE_URL` are set alongside the core LinkedIn values. The configured scopes are sent to LinkedIn after whitespace/comma normalization, with the OIDC `openid profile email` scopes added when absent; the configured profile URL is the restricted or partner endpoint that returns the approved profile. Without those import settings, `intent=import` fails with a clear configuration error while normal LinkedIn login remains available. Access tokens are used only for the provider request and are never returned or stored. The callback stores only normalized `CvData` in a short-lived pending import. Apply with `expected_version` replaces the draft data atomically, preserves `template_id`, clears generated source metadata, increments the draft version, and consumes the pending import.
 
 CV draft writes use an optimistic `expected_version` field. Send `expected_version: 0` to create the first draft, then send the version returned by the previous write; a stale version returns `409 Conflict`. Draft data is bounded to 1 MiB and responses include the associated project, document, and latest revision metadata. `template_id` stores the selected catalog template; `generated_template_id` records which template produced the persisted source, so changing the selection leaves an older preview explicitly outdated. The render endpoint returns escaped source and its timestamp; it does not enqueue a live compile job.
 

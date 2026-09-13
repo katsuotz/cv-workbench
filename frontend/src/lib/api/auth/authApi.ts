@@ -6,6 +6,7 @@ import type { AuthResponse, AuthUser } from './types';
 export interface AuthApi {
   getCurrentUser(): Promise<AuthUser | null>;
   getGoogleStartUrl(): string;
+  getLinkedInStartUrl(intent?: 'login' | 'import'): string;
   login(email: string, password: string): Promise<AuthUser>;
   register(email: string, password: string, name?: string): Promise<AuthUser>;
   logout(): Promise<void>;
@@ -19,6 +20,10 @@ export class AuthApiClient implements AuthApi {
 
   getGoogleStartUrl() {
     return `${this.http.sessionContext.baseUrl}/api/v1/auth/google/start`;
+  }
+
+  getLinkedInStartUrl(intent: 'login' | 'import' = 'login') {
+    return `${this.http.sessionContext.baseUrl}/api/v1/auth/linkedin/start?intent=${intent}`;
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {

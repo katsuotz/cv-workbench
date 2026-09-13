@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     BackendApiError,
     createBackendApi,
     type AuthUser,
     type CvSessionDraft,
     type CvSessionResponse,
-    type CvTemplateSummary
+    type CvTemplateSummary,
+    type LinkedInPendingImport
   } from '$lib/api';
   import {
     blankCv,
@@ -75,6 +76,10 @@
   let authName = '';
   let authBusy = false;
   let authNotice = '';
+  let importBusy = false;
+  let importNotice = '';
+  let pendingLinkedInImport: LinkedInPendingImport | null = null;
+  let importDialog: HTMLElement;
   let errors: CvValidationError[] = [];
   let notice = '';
   let state: PreviewState = {
@@ -290,6 +295,14 @@
     presentation = lastGeneratedSource ? 'workspace' : 'intake';
   }
 
+  function resetPreview() {
+    state = { status: 'idle', requestedSource: '', lastSuccess: null, diagnostics: [] };
+    advanced = false;
+    mobilePane = 'form';
+    diagnosticLine = null;
+    diagnosticColumn = null;
+  }
+
   function openAuth(mode: 'login' | 'register') {
     authMode = mode;
     authOpen = true;
@@ -318,24 +331,153 @@
     }
   }
 
-  function consumeAuthCallback() {
+  async function continueWithLinkedIn(event: MouseEvent) {
+    event.preventDefault();
+    if (authBusy) return;
+
+    authBusy = true;
+    authNotice = '';
+    try {
+      if (!sessionController.id && workspaceBootstrapPending) {
+        await workspaceBootstrapPending;
+      }
+      if (!sessionController.id || !(await flushAutosave(true))) {
+        authNotice = 'Could not save your CV before LinkedIn sign-in. Try again.';
+        return;
+      }
+      window.location.assign(accountService.linkedInStartUrl('login'));
+    } catch (error) {
+      authNotice =
+        error instanceof Error ? error.message : 'LinkedIn sign-in could not be started.';
+    } finally {
+      authBusy = false;
+    }
+  }
+
+  async function importFromLinkedIn(event: MouseEvent) {
+    event.preventDefault();
+    if (importBusy) return;
+
+    importBusy = true;
+    importNotice = '';
+    notice = '';
+    try {
+      if (!sessionController.id && workspaceBootstrapPending) {
+        await workspaceBootstrapPending;
+      }
+      if (!sessionController.id || !(await flushAutosave(true))) {
+        importNotice = 'Could not save your CV before LinkedIn import. Try again.';
+        return;
+      }
+      window.location.assign(accountService.linkedInStartUrl('import'));
+    } catch (error) {
+      importNotice =
+        error instanceof Error ? error.message : 'LinkedIn import could not be started.';
+    } finally {
+      importBusy = false;
+    }
+  }
+
+  type CallbackState = {
+    auth: 'success' | 'error' | null;
+    provider: string | null;
+    importReady: boolean;
+  };
+
+  function consumeAuthCallback(): CallbackState {
     const url = new URL(window.location.href);
     const result = url.searchParams.get('auth');
-    if (result !== 'success' && result !== 'error') return;
+    const provider = url.searchParams.get('provider');
+    const importReady = provider === 'linkedin' && url.searchParams.get('import') === 'ready';
+    const hasCallback =
+      result === 'success' ||
+      result === 'error' ||
+      provider === 'linkedin' ||
+      url.searchParams.get('import') === 'ready';
+    if (!hasCallback) return { auth: null, provider: null, importReady: false };
 
     const message = url.searchParams.get('message');
-    url.searchParams.delete('auth');
-    url.searchParams.delete('message');
+    for (const key of ['auth', 'message', 'provider', 'import', 'code', 'state']) {
+      url.searchParams.delete(key);
+    }
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 
-    if (result === 'success') {
-      notice = 'Signed in with Google. Your CV session is synced.';
-      return;
+    if (result === 'error') {
+      authMode = 'login';
+      authOpen = true;
+      authNotice =
+        message ||
+        (provider === 'linkedin'
+          ? 'LinkedIn sign-in could not be completed. Try again.'
+          : 'Google sign-in could not be completed. Try again.');
     }
+    return {
+      auth: result === 'success' || result === 'error' ? result : null,
+      provider,
+      importReady
+    };
+  }
 
-    authMode = 'login';
-    authOpen = true;
-    authNotice = message || 'Google sign-in could not be completed. Try again.';
+  async function reviewLinkedInImport() {
+    try {
+      const pending = await backendApi.cvImport.getPending();
+      if (!pending) {
+        notice = 'No pending LinkedIn import is available. Try importing again.';
+        return;
+      }
+      pendingLinkedInImport = pending;
+      await tick();
+      importDialog?.querySelector<HTMLElement>('[data-import-confirm]')?.focus();
+    } catch (error) {
+      notice = error instanceof Error ? error.message : 'Could not load the LinkedIn import.';
+    }
+  }
+
+  function closeImportDialog() {
+    pendingLinkedInImport = null;
+    importNotice = '';
+  }
+
+  async function discardLinkedInImport() {
+    if (!pendingLinkedInImport || importBusy) return;
+    importBusy = true;
+    importNotice = '';
+    try {
+      await backendApi.cvImport.discard(pendingLinkedInImport.id);
+      closeImportDialog();
+      notice = 'LinkedIn import discarded. Your current CV was not changed.';
+    } catch (error) {
+      importNotice = error instanceof Error ? error.message : 'Could not discard this import.';
+    } finally {
+      importBusy = false;
+    }
+  }
+
+  async function applyLinkedInImport() {
+    if (!pendingLinkedInImport || importBusy) return;
+    importBusy = true;
+    importNotice = '';
+    try {
+      const session = await backendApi.cvImport.apply(
+        pendingLinkedInImport.id,
+        sessionController.currentVersion
+      );
+      sessionController.hydrate(session);
+      pendingLinkedInImport = null;
+      resetPreview();
+      activeSection = 'summary';
+      presentation = 'intake';
+      notice = 'LinkedIn import applied. Your current CV was replaced.';
+    } catch (error) {
+      importNotice =
+        error instanceof BackendApiError && error.status === 409
+          ? 'Your CV changed while this import was open. The current CV was not replaced.'
+          : error instanceof Error
+            ? error.message
+            : 'Could not apply this LinkedIn import.';
+    } finally {
+      importBusy = false;
+    }
   }
 
   async function submitAuth() {
@@ -370,12 +512,13 @@
 
   onMount(() => {
     let active = true;
-    consumeAuthCallback();
+    const callback = consumeAuthCallback();
     workspaceBootstrapPending = (async () => {
       try {
         const user = await accountService.currentUser();
         if (!active) return;
         authUser = user;
+
         templateCatalog = await backendApi.templates.list();
         if (!templateCatalog.length) throw new Error('No CV templates are available.');
         templateId = templateCatalog[0].id;
@@ -388,6 +531,16 @@
         );
         if (!active) return;
         controllerReady = true;
+        if (callback.importReady) {
+          await reviewLinkedInImport();
+        } else if (callback.auth === 'success' && user) {
+          notice =
+            callback.provider === 'linkedin'
+              ? 'Signed in with LinkedIn. Your CV session is synced.'
+              : 'Signed in with Google. Your CV session is synced.';
+        } else if (callback.auth === 'success') {
+          notice = 'Sign-in could not be verified. Please try again.';
+        }
       } catch (error) {
         if (!active) return;
         controllerReady = false;
@@ -421,6 +574,11 @@
 
 <svelte:window
   on:keydown={(event) => {
+    if (event.key === 'Escape' && pendingLinkedInImport && !importBusy) {
+      event.preventDefault();
+      closeImportDialog();
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
       event.preventDefault();
       if (state.status !== 'loading') void generate();
@@ -439,6 +597,7 @@
     {authBusy}
     {authNotice}
     googleStartUrl={accountService.googleStartUrl()}
+    linkedInStartUrl={accountService.linkedInStartUrl('login')}
     {advanced}
     onAuthMode={openAuth}
     onAuthOpenChange={(open) => (authOpen = open)}
@@ -447,6 +606,7 @@
     onNameChange={(value) => (authName = value)}
     onSubmitAuth={submitAuth}
     onGoogleAuth={continueWithGoogle}
+    onLinkedInAuth={continueWithLinkedIn}
     onLogout={logout}
     onToggleAdvanced={toggleAdvanced} />
 
@@ -485,6 +645,9 @@
         {errors}
         {notice}
         {fieldError}
+        {importBusy}
+        {importNotice}
+        onImportFromLinkedIn={importFromLinkedIn}
         onInput={changed}
         onAdd={add}
         onRemove={remove}
@@ -522,6 +685,57 @@
         onDiagnosticSelect={selectDiagnostic} />
     {/if}
   </div>
+
+  {#if pendingLinkedInImport}
+    <div class="import-dialog-backdrop">
+      <div
+        bind:this={importDialog}
+        class="import-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="linkedin-import-title"
+        aria-describedby="linkedin-import-description">
+        <div class="import-dialog-heading">
+          <h2 id="linkedin-import-title">Review LinkedIn import</h2>
+          <Button
+            variant="text"
+            aria-label="Close LinkedIn import review"
+            onClick={closeImportDialog}
+            disabled={importBusy}>
+            ×
+          </Button>
+        </div>
+        <p id="linkedin-import-description" class="import-dialog-warning">
+          The current CV will be replaced with the LinkedIn profile when you confirm.
+        </p>
+        <div class="import-review">
+          <strong>{pendingLinkedInImport.data.identity.fullName || 'Unnamed profile'}</strong>
+          {#if pendingLinkedInImport.data.identity.email}
+            <span>{pendingLinkedInImport.data.identity.email}</span>
+          {/if}
+          {#if pendingLinkedInImport.data.summary}
+            <p>{pendingLinkedInImport.data.summary}</p>
+          {/if}
+        </div>
+        {#if importNotice}<p class="import-dialog-error" role="alert">{importNotice}</p>{/if}
+        <div class="import-dialog-actions">
+          <Button variant="text" onClick={closeImportDialog} disabled={importBusy}>
+            Keep current CV
+          </Button>
+          <Button variant="text" onClick={discardLinkedInImport} disabled={importBusy}>
+            {importBusy ? 'Working…' : 'Discard import'}
+          </Button>
+          <Button
+            variant="primary"
+            data-import-confirm
+            onClick={applyLinkedInImport}
+            disabled={importBusy}>
+            {importBusy ? 'Replacing…' : 'Replace current CV'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
     {state.status === 'loading'
@@ -641,6 +855,107 @@
     font-size: 11px;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .import-dialog-backdrop {
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgb(23 33 43 / 34%);
+  }
+
+  .import-dialog {
+    width: min(520px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    border: 1px solid var(--rule-strong);
+    border-radius: 10px;
+    padding: 24px;
+    background: var(--surface);
+    box-shadow: 0 18px 42px rgb(23 33 43 / 16%);
+  }
+
+  .import-dialog-heading,
+  .import-dialog-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .import-dialog-heading {
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .import-dialog h2,
+  .import-dialog p {
+    margin: 0;
+  }
+
+  .import-dialog h2 {
+    font-size: 22px;
+    letter-spacing: -0.03em;
+  }
+
+  .import-dialog-warning {
+    margin-top: 18px !important;
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .import-review {
+    display: grid;
+    gap: 6px;
+    margin-top: 18px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 16px 0;
+  }
+
+  .import-review span,
+  .import-review p {
+    color: var(--muted-ink);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .import-dialog-error {
+    margin-top: 16px !important;
+    color: var(--danger);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .import-dialog-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  @media (max-width: 560px) {
+    .import-dialog-backdrop {
+      place-items: end center;
+      padding: 8px;
+    }
+
+    .import-dialog {
+      max-height: calc(100vh - 16px);
+      padding: 20px 16px;
+    }
+
+    .import-dialog-actions {
+      align-items: stretch;
+      flex-direction: column-reverse;
+    }
+
+    .import-dialog-actions :global(.button),
+    .import-dialog-actions :global(.text-button) {
+      width: 100%;
+    }
   }
 
   .account-panel {

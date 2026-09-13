@@ -20,6 +20,10 @@ export class AccountService {
     return this.auth.getGoogleStartUrl();
   }
 
+  linkedInStartUrl(intent: 'login' | 'import' = 'login') {
+    return this.auth.getLinkedInStartUrl(intent);
+  }
+
   async authenticate(mode: 'login' | 'register', email: string, password: string, name?: string) {
     const user =
       mode === 'login'

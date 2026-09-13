@@ -95,6 +95,7 @@ pub struct AdminUserResponse {
     #[serde(rename = "name")]
     pub display_name: Option<String>,
     pub role: UserRole,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
 
@@ -150,4 +151,24 @@ pub struct AuthSessionResponse {
     pub account: AccountResponse,
     pub token: String,
     pub expires_at: OffsetDateTime,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn admin_user_dates_serialize_as_rfc3339() {
+        let response = AdminUserResponse {
+            id: Uuid::nil(),
+            email: "user@example.test".into(),
+            display_name: None,
+            role: UserRole::User,
+            created_at: OffsetDateTime::UNIX_EPOCH,
+        };
+
+        let serialized = serde_json::to_value(response).unwrap();
+
+        assert_eq!(serialized["created_at"], "1970-01-01T00:00:00Z");
+    }
 }

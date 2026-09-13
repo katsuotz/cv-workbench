@@ -7,14 +7,16 @@
 
   export let state: PreviewState;
   export let advanced: boolean;
-  export let dirty: boolean;
   export let lastGeneratedSource: string;
+  export let rendering = false;
+  export let controllerReady = false;
   export let diagnosticLine: number | null = null;
   export let diagnosticColumn: number | null = null;
   export let hidden = false;
   export let onCopySource: () => void;
   export let onDownloadText: () => void;
   export let onDownloadPdf: () => void;
+  export let onRefresh: () => void;
   export let onToggleAdvanced: () => void;
   export let onDiagnosticSelect: (line: number, column: number) => void;
 
@@ -74,13 +76,25 @@
             readOnly />
         </div>
       {:else}
-        <pre class="source-code">Generate your CV to inspect its exact LaTeX source.</pre>
+        <pre class="source-code">Preview your CV to inspect its exact LaTeX source.</pre>
       {/if}
     </div>
   {:else}
     <div class="preview-header">
-      <div>
+      <div class="preview-title">
         <h2>Preview</h2>
+        <Button
+          variant="secondary"
+          className="refresh-button"
+          onClick={onRefresh}
+          disabled={!controllerReady || rendering || state.status === 'loading'}
+          aria-label="Refresh preview"
+          title="Refresh preview">
+          <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <path d="M16 5v4h-4" />
+            <path d="M16 9a6.5 6.5 0 1 0 1 4" />
+          </svg>
+        </Button>
       </div>
       <div class="preview-actions">
         <Button
@@ -90,9 +104,6 @@
           disabled={!lastGeneratedSource}>
           Source
         </Button>
-        {#if state.lastSuccess && (dirty || state.status === 'failure')}
-          <span class="proof-badge is-stale">Last successful proof</span>
-        {/if}
         {#if state.lastSuccess}
           <Button variant="secondary" onClick={openFullPage}>Full page</Button>
         {/if}
@@ -149,6 +160,28 @@
     margin: 0;
   }
 
+  .preview-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  :global(.refresh-button) {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  :global(.refresh-button svg) {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+  }
+
   .preview-header h2,
   .source-header h2 {
     font-size: 18px;
@@ -165,24 +198,6 @@
 
   :global(.mobile-source-toggle) {
     display: none;
-  }
-
-  .proof-badge {
-    border: 1px solid var(--rule-strong);
-    border-radius: 5px;
-    padding: 6px 8px;
-    color: var(--muted-ink);
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .proof-badge.is-stale {
-    border-color: #e8c57f;
-    background: var(--warning-soft);
-    color: var(--warning);
   }
 
   .preview-body {

@@ -8,10 +8,12 @@
 
 <header class="toolbar" aria-label="Document toolbar">
   <div class="toolbar-brand">
-    <span class="toolbar-mark" aria-hidden="true">M</span>
+    <span class="toolbar-mark" aria-hidden="true">CV</span>
     <div>
-      <p>Marginalia</p>
-      <span>{dirty ? 'Unpreviewed changes' : status === 'success' ? 'Proof ready' : 'Draft'}</span>
+      <p>CV Workbench</p>
+      <span>
+        {dirty ? 'Unpreviewed changes' : status === 'success' ? 'Preview complete' : 'Draft'}
+      </span>
     </div>
   </div>
   <div class="toolbar-status" role="status">
@@ -20,7 +22,7 @@
       : status === 'failure'
         ? 'Needs attention'
         : status === 'success'
-          ? 'Proof ready'
+          ? 'Preview complete'
           : 'Draft'}
   </div>
   <Button

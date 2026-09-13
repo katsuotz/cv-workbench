@@ -18,7 +18,7 @@
       {/if}
       <div class="preview-loading" role="status" aria-live="polite">
         <span class="loading-mark" aria-hidden="true"></span>
-        <strong>Setting the proof</strong>
+        <strong>Preparing preview</strong>
         <span>Compiling the latest source…</span>
       </div>
     {:else if state.status === 'failure'}
@@ -29,8 +29,8 @@
       {:else}
         <div class="preview-empty is-error" role="status">
           <span class="empty-mark" aria-hidden="true">!</span>
-          <h3>Proof needs attention</h3>
-          <p>Use the compiler notes below to resolve the issue, then generate again.</p>
+          <h3>Preview unavailable</h3>
+          <p>Use the compiler notes below to resolve the issue, then preview again.</p>
         </div>
       {/if}
     {:else if state.lastSuccess}
@@ -38,8 +38,8 @@
     {:else}
       <div class="preview-empty" role="status">
         <span class="empty-mark" aria-hidden="true">—</span>
-        <h3>No proof yet</h3>
-        <p>Generate your CV to turn the structured form into a rendered document.</p>
+        <h3>No preview yet</h3>
+        <p>Preview your CV to turn the structured form into a rendered document.</p>
       </div>
     {/if}
   </div>

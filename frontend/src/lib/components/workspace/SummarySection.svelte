@@ -35,7 +35,7 @@
   <TemplatePicker {templates} selectedId={selectedTemplateId} onSelect={onSelectTemplate} />
 {/if}
 
-<div class="grid grid-cols-2 gap-x-7 gap-y-6 max-[560px]:grid-cols-1">
+<div class="form-grid">
   <TextField
     wide
     label="Full name"

@@ -31,6 +31,7 @@
   import { SessionController } from './sessionController';
   import WorkspaceHeader from '../components/workspace/WorkspaceHeader.svelte';
   import WorkspaceMobilePaneNav from '../components/workspace/WorkspaceMobilePaneNav.svelte';
+  import { Button } from '../components/base';
   import SectionRail from '../components/workspace/SectionRail.svelte';
   import CvForm from '../components/workspace/CvForm.svelte';
   import WorkspacePreviewPanel from '../components/workspace/WorkspacePreviewPanel.svelte';
@@ -189,14 +190,14 @@
   async function generate() {
     if (rendering || state.status === 'loading') return;
     if (!controllerReady || !controller) {
-      notice = 'The preview workspace is still loading. Try Generate CV again in a moment.';
+      notice = 'The preview workspace is still loading. Try Preview again in a moment.';
       return;
     }
     errors = validateCv(data);
     if (errors.length) {
       activeSection = errors[0].section;
       mobilePane = 'form';
-      notice = 'Review the highlighted field before generating.';
+      notice = 'Review the highlighted field before previewing.';
       requestAnimationFrame(() =>
         document.querySelector<HTMLElement>(`[data-path="${errors[0].path}"]`)?.focus()
       );
@@ -216,19 +217,17 @@
       mobilePane = 'preview';
       const saved = await flushAutosave(true);
       notice = saved
-        ? 'Source generated. Setting the proof…'
-        : 'Remote save is unavailable; setting the proof in this tab…';
+        ? 'Source generated. Loading preview…'
+        : 'Remote save is unavailable; loading preview in this tab…';
       await controller.compile(lastGeneratedSource);
       notice =
         state.status === 'success'
-          ? saved
-            ? 'CV generated and proof ready.'
-            : 'CV generated and proof ready; the draft remains in this tab.'
+          ? ''
           : saved
-            ? 'Source generated, but the proof could not be completed.'
+            ? 'Source generated, but the preview could not be completed.'
             : 'Source generated in this tab, but the draft could not be saved.';
     } catch (error) {
-      notice = error instanceof Error ? error.message : 'Could not generate the CV.';
+      notice = error instanceof Error ? error.message : 'Could not prepare the preview.';
     } finally {
       rendering = false;
     }
@@ -395,12 +394,7 @@
     {authName}
     {authBusy}
     {authNotice}
-    proofStatus={state.status}
-    {dirty}
-    hasGeneratedSource={Boolean(lastGeneratedSource)}
     {advanced}
-    {rendering}
-    {controllerReady}
     onAuthMode={openAuth}
     onAuthOpenChange={(open) => (authOpen = open)}
     onEmailChange={(value) => (authEmail = value)}
@@ -408,8 +402,7 @@
     onNameChange={(value) => (authName = value)}
     onSubmitAuth={submitAuth}
     onLogout={logout}
-    onToggleAdvanced={toggleAdvanced}
-    onGenerate={generate} />
+    onToggleAdvanced={toggleAdvanced} />
 
   {#if presentation === 'workspace'}
     <WorkspaceMobilePaneNav
@@ -427,7 +420,11 @@
         {labels}
         {activeSection}
         {sectionErrors}
-        onSelect={(section) => (activeSection = section)} />
+        onSelect={(section) => (activeSection = section)}
+        previewStatus={state.status}
+        {rendering}
+        {controllerReady}
+        onPreview={generate} />
       <CvForm
         {data}
         templates={templateCatalog}
@@ -451,20 +448,30 @@
         onMoveProfile={moveProfile}
         onPrevious={() => go(-1)}
         onNext={() => go(1)} />
+      <div class="mobile-preview-action">
+        <Button
+          variant="primary"
+          onClick={generate}
+          disabled={!controllerReady || rendering || state.status === 'loading'}>
+          {rendering || state.status === 'loading' ? 'Previewing…' : 'Preview'}
+        </Button>
+      </div>
     </section>
 
     {#if presentation === 'workspace'}
       <WorkspacePreviewPanel
         {state}
         {advanced}
-        {dirty}
         {lastGeneratedSource}
+        {rendering}
+        {controllerReady}
         {diagnosticLine}
         {diagnosticColumn}
         hidden={mobilePane !== 'preview'}
         onCopySource={copySource}
         onDownloadText={downloadText}
         onDownloadPdf={downloadPdf}
+        onRefresh={generate}
         onToggleAdvanced={toggleAdvanced}
         onDiagnosticSelect={selectDiagnostic} />
     {/if}
@@ -552,7 +559,6 @@
   .section-kicker,
   .section-index,
   .page-count,
-  .proof-status,
   :global(.field-label),
   :global(.form-label) {
     color: var(--muted-ink);
@@ -674,34 +680,6 @@
     line-height: 1;
   }
 
-  .proof-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-  }
-
-  .proof-status::before {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--quiet-ink);
-    content: '';
-  }
-
-  .proof-status.is-loading::before {
-    background: var(--blue);
-    animation: spin 0.8s linear infinite;
-  }
-
-  .proof-status.is-success::before {
-    background: var(--success);
-  }
-
-  .proof-status.is-stale::before,
-  .proof-status.is-failure::before {
-    background: var(--danger);
-  }
-
   .button {
     min-height: 36px;
     border: 1px solid transparent;
@@ -800,6 +778,12 @@
     grid-template-columns: minmax(520px, 56%) minmax(360px, 44%);
   }
 
+  @media (min-width: 1200px) {
+    .workspace-content {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
   .is-intake .workspace-content {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -807,9 +791,32 @@
   .form-panel {
     display: grid;
     min-height: 0;
-    grid-template-columns: 190px minmax(0, 1fr);
-    border-right: 1px solid var(--rule);
+    grid-template-columns: 176px minmax(0, 760px);
+    column-gap: 28px;
+    justify-content: center;
+    border-right: 0;
+    padding: 0 28px;
     background: var(--surface);
+  }
+
+  .mobile-preview-action {
+    display: none;
+  }
+
+  .is-intake .form-panel {
+    column-gap: 36px;
+  }
+
+  .is-intake .form-panel :global(.section-rail) {
+    align-self: start;
+    border-right: 0;
+    background: transparent;
+    padding: 44px 0;
+  }
+
+  .is-intake .form-panel :global(.builder-scroll) {
+    padding-right: 0;
+    padding-left: 0;
   }
 
   .intake-panel .builder-scroll {
@@ -1118,24 +1125,6 @@
     gap: 10px;
   }
 
-  .proof-badge {
-    border: 1px solid var(--rule-strong);
-    border-radius: 5px;
-    padding: 6px 8px;
-    color: var(--muted-ink);
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .proof-badge.is-stale {
-    border-color: #e8c57f;
-    background: var(--warning-soft);
-    color: var(--warning);
-  }
-
   .source-panel {
     display: flex;
     min-height: 0;
@@ -1178,8 +1167,12 @@
   }
 
   @media (max-width: 620px) {
-    :global(.form-grid) {
+    .is-intake .form-panel :global(.form-grid) {
       grid-template-columns: 1fr;
+    }
+
+    .is-intake .form-panel :global(.form-grid > .col-span-2) {
+      grid-column: auto;
     }
   }
 
@@ -1204,7 +1197,29 @@
       display: grid;
       height: 100%;
       grid-template-columns: 1fr;
+      grid-template-rows: minmax(0, 1fr) auto;
       border-right: 0;
+      padding: 0;
+    }
+
+    .is-intake .form-panel {
+      grid-template-columns: 1fr;
+      padding: 0;
+    }
+
+    .is-intake .form-panel :global(.builder-scroll) {
+      padding: 32px 24px 44px;
+    }
+
+    .mobile-preview-action {
+      display: flex;
+      border-top: 1px solid var(--rule);
+      padding: 12px 16px 16px;
+      background: var(--surface);
+    }
+
+    .mobile-preview-action :global(.button) {
+      width: 100%;
     }
 
     .section-rail {
@@ -1226,10 +1241,6 @@
     .form-content {
       width: min(100%, 700px);
     }
-
-    .proof-status {
-      display: none;
-    }
   }
 
   @media (max-width: 560px) {
@@ -1239,11 +1250,6 @@
 
     .source-toggle {
       display: none;
-    }
-
-    .generate-button {
-      padding: 0 11px;
-      font-size: 10px;
     }
 
     .register-button,
@@ -1258,6 +1264,10 @@
     }
 
     .builder-scroll {
+      padding: 28px 16px 36px;
+    }
+
+    .is-intake .form-panel :global(.builder-scroll) {
       padding: 28px 16px 36px;
     }
 

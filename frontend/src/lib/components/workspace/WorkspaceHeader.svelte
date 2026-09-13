@@ -11,12 +11,7 @@
   export let authName: string;
   export let authBusy: boolean;
   export let authNotice: string;
-  export let proofStatus: 'idle' | 'loading' | 'success' | 'empty' | 'failure';
-  export let dirty: boolean;
-  export let hasGeneratedSource: boolean;
   export let advanced: boolean;
-  export let rendering: boolean;
-  export let controllerReady: boolean;
   export let onAuthMode: (mode: 'login' | 'register') => void;
   export let onAuthOpenChange: (open: boolean) => void;
   export let onEmailChange: (value: string) => void;
@@ -25,135 +20,128 @@
   export let onSubmitAuth: () => void;
   export let onLogout: () => void;
   export let onToggleAdvanced: () => void;
-  export let onGenerate: () => void;
-
-  $: statusLabel =
-    proofStatus === 'loading'
-      ? 'Setting proof'
-      : dirty && hasGeneratedSource
-        ? 'Proof outdated'
-        : proofStatus === 'success'
-          ? 'Proof ready'
-          : proofStatus === 'failure'
-            ? 'Needs attention'
-            : '';
 </script>
 
-<header class="workspace-header">
-  <div class="brand-lockup">
-    <div class="brand-mark" aria-hidden="true">M</div>
-    <h1>Marginalia</h1>
-  </div>
-  <div class="header-actions">
-    <div class="account-controls">
-      {#if authUser}
-        <span class="account-label" title={authUser.email}>{authUser.email}</span>
-        <Button variant="secondary" className="account-button" onClick={onLogout}>Log out</Button>
-      {:else}
-        <Button variant="secondary" className="account-button" onClick={() => onAuthMode('login')}>
-          Log in
-        </Button>
-        <Button
-          variant="secondary"
-          className="account-button register-button"
-          onClick={() => onAuthMode('register')}>
-          Register
-        </Button>
-      {/if}
-      {#if authOpen}
-        <div
-          class="account-panel"
-          role="dialog"
-          aria-label={authMode === 'login' ? 'Log in' : 'Create account'}>
-          <div class="account-panel-heading">
-            <div>
-              <h2>{authMode === 'login' ? 'Welcome back' : 'Save your CV everywhere'}</h2>
+<header class="workspace-header" class:is-intake={presentation === 'intake'}>
+  <div class="workspace-header-inner">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">CV</div>
+      <h1>CV Workbench</h1>
+    </div>
+    <div class="header-actions">
+      <div class="account-controls">
+        {#if authUser}
+          <span class="account-label" title={authUser.email}>{authUser.email}</span>
+          <Button variant="secondary" className="account-button" onClick={onLogout}>Log out</Button>
+        {:else}
+          <Button
+            variant="secondary"
+            className="account-button"
+            onClick={() => onAuthMode('login')}>
+            Log in
+          </Button>
+          <Button
+            variant="secondary"
+            className="account-button register-button"
+            onClick={() => onAuthMode('register')}>
+            Register
+          </Button>
+        {/if}
+        {#if authOpen}
+          <div
+            class="account-panel"
+            role="dialog"
+            aria-label={authMode === 'login' ? 'Log in' : 'Create account'}>
+            <div class="account-panel-heading">
+              <div>
+                <h2>{authMode === 'login' ? 'Welcome back' : 'Save your CV everywhere'}</h2>
+              </div>
+              <Button
+                variant="text"
+                className="close-button"
+                aria-label="Close account form"
+                onClick={() => onAuthOpenChange(false)}>
+                ×
+              </Button>
             </div>
+            <p class="account-helper">Anonymous editing stays available without signing in.</p>
+            <form on:submit|preventDefault={onSubmitAuth}>
+              {#if authMode === 'register'}
+                <TextField
+                  label="Name"
+                  value={authName}
+                  autocomplete="name"
+                  on:input={(event) => onNameChange((event.target as HTMLInputElement).value)} />
+              {/if}
+              <TextField
+                label="Email"
+                value={authEmail}
+                type="email"
+                autocomplete="email"
+                required
+                on:input={(event) => onEmailChange((event.target as HTMLInputElement).value)} />
+              <TextField
+                label="Password"
+                value={authPassword}
+                type="password"
+                autocomplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                minlength="12"
+                required
+                on:input={(event) => onPasswordChange((event.target as HTMLInputElement).value)} />
+              {#if authNotice}<p class="account-error" role="alert">{authNotice}</p>{/if}
+              <Button
+                variant="primary"
+                className="account-submit"
+                type="submit"
+                disabled={authBusy}>
+                {authBusy ? 'Working…' : authMode === 'login' ? 'Log in' : 'Create account'}
+              </Button>
+            </form>
             <Button
               variant="text"
-              className="close-button"
-              aria-label="Close account form"
-              onClick={() => onAuthOpenChange(false)}>
-              ×
+              className="account-switch"
+              onClick={() => onAuthMode(authMode === 'login' ? 'register' : 'login')}>
+              {authMode === 'login'
+                ? 'Need an account? Register'
+                : 'Already have an account? Log in'}
             </Button>
           </div>
-          <p class="account-helper">Anonymous editing stays available without signing in.</p>
-          <form on:submit|preventDefault={onSubmitAuth}>
-            {#if authMode === 'register'}
-              <TextField
-                label="Name"
-                value={authName}
-                autocomplete="name"
-                on:input={(event) => onNameChange((event.target as HTMLInputElement).value)} />
-            {/if}
-            <TextField
-              label="Email"
-              value={authEmail}
-              type="email"
-              autocomplete="email"
-              required
-              on:input={(event) => onEmailChange((event.target as HTMLInputElement).value)} />
-            <TextField
-              label="Password"
-              value={authPassword}
-              type="password"
-              autocomplete={authMode === 'login' ? 'current-password' : 'new-password'}
-              minlength="12"
-              required
-              on:input={(event) => onPasswordChange((event.target as HTMLInputElement).value)} />
-            {#if authNotice}<p class="account-error" role="alert">{authNotice}</p>{/if}
-            <Button variant="primary" className="account-submit" type="submit" disabled={authBusy}>
-              {authBusy ? 'Working…' : authMode === 'login' ? 'Log in' : 'Create account'}
-            </Button>
-          </form>
-          <Button
-            variant="text"
-            className="account-switch"
-            onClick={() => onAuthMode(authMode === 'login' ? 'register' : 'login')}>
-            {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Log in'}
-          </Button>
-        </div>
+        {/if}
+      </div>
+      {#if presentation === 'workspace'}
+        <Button
+          variant="secondary"
+          className="source-toggle"
+          onClick={onToggleAdvanced}
+          aria-pressed={advanced}>
+          Source
+        </Button>
       {/if}
     </div>
-    {#if statusLabel}
-      <span
-        class="proof-status"
-        class:is-loading={proofStatus === 'loading'}
-        class:is-success={proofStatus === 'success' && !dirty}
-        class:is-stale={dirty && hasGeneratedSource}
-        class:is-failure={proofStatus === 'failure'}
-        role="status">
-        {statusLabel}
-      </span>
-    {/if}
-    {#if presentation === 'workspace'}
-      <Button
-        variant="secondary"
-        className="source-toggle"
-        onClick={onToggleAdvanced}
-        aria-pressed={advanced}>
-        Source
-      </Button>
-    {/if}
-    <Button
-      variant="primary"
-      className="generate-button"
-      onClick={onGenerate}
-      disabled={!controllerReady || rendering || proofStatus === 'loading'}>
-      {rendering || proofStatus === 'loading' ? 'Generating…' : 'Generate CV'}
-    </Button>
   </div>
 </header>
 
 <style>
   .workspace-header {
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface);
+  }
+
+  .workspace-header-inner {
     display: flex;
+    height: 72px;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
+    width: 100%;
+    margin: 0 auto;
     padding: 0 28px;
-    border-bottom: 1px solid var(--rule);
-    background: var(--surface);
+  }
+
+  .workspace-header.is-intake .workspace-header-inner {
+    width: min(calc(100% - 56px), 1028px);
+    padding-right: 28px;
+    padding-left: 28px;
   }
 
   .brand-lockup,
@@ -189,7 +177,6 @@
     letter-spacing: -0.02em;
   }
 
-  .proof-status,
   :global(.field-label) {
     color: var(--muted-ink);
     font-family: var(--mono);
@@ -309,41 +296,16 @@
     line-height: 1;
   }
 
-  .proof-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-  }
-
-  .proof-status::before {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--quiet-ink);
-    content: '';
-  }
-
-  .proof-status.is-loading::before {
-    background: var(--blue);
-    animation: spin 0.8s linear infinite;
-  }
-
-  .proof-status.is-success::before {
-    background: var(--success);
-  }
-
-  .proof-status.is-stale::before,
-  .proof-status.is-failure::before {
-    background: var(--danger);
-  }
-
   @media (max-width: 900px) {
-    .workspace-header {
+    .workspace-header-inner {
+      height: 100%;
       padding: 0 16px;
     }
 
-    .proof-status {
-      display: none;
+    .workspace-header.is-intake .workspace-header-inner {
+      width: 100%;
+      padding-right: 16px;
+      padding-left: 16px;
     }
   }
 
@@ -356,11 +318,6 @@
     :global(.register-button),
     .account-label {
       display: none;
-    }
-
-    :global(.generate-button) {
-      padding: 0 11px;
-      font-size: 10px;
     }
 
     .account-panel {

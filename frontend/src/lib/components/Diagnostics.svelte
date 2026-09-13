@@ -13,7 +13,7 @@
       <div>
         <p>Compiler notes</p>
         <h3>
-          Resolve {diagnostics.length === 1 ? 'this issue' : 'these issues'} before the next proof
+          Resolve {diagnostics.length === 1 ? 'this issue' : 'these issues'} before previewing again
         </h3>
       </div>
     </div>

@@ -7,29 +7,60 @@
   export let activeSection: CvSectionId;
   export let sectionErrors: (section: CvSectionId) => number;
   export let onSelect: (section: CvSectionId) => void;
+  export let previewStatus: 'idle' | 'loading' | 'success' | 'empty' | 'failure';
+  export let rendering = false;
+  export let controllerReady = false;
+  export let onPreview: () => void;
 </script>
 
 <nav class="section-rail" aria-label="CV sections">
-  {#each sections as section, index}
-    {@const errorCount = sectionErrors(section)}
+  <div class="section-nav-list">
+    {#each sections as section, index}
+      {@const errorCount = sectionErrors(section)}
+      <Button
+        variant="text"
+        className={`section-nav-button ${activeSection === section ? 'is-active' : ''} ${errorCount > 0 ? 'has-error' : ''}`}
+        onClick={() => onSelect(section)}
+        aria-current={activeSection === section ? 'step' : undefined}>
+        <span>{labels[section]}</span>
+        <span class="section-index">
+          {errorCount ? `!${errorCount}` : String(index + 1).padStart(2, '0')}
+        </span>
+      </Button>
+    {/each}
+  </div>
+  <div class="section-rail-actions">
     <Button
-      variant="text"
-      className={`section-nav-button ${activeSection === section ? 'is-active' : ''} ${errorCount > 0 ? 'has-error' : ''}`}
-      onClick={() => onSelect(section)}
-      aria-current={activeSection === section ? 'step' : undefined}>
-      <span>{labels[section]}</span>
-      <span class="section-index">
-        {errorCount ? `!${errorCount}` : String(index + 1).padStart(2, '0')}
-      </span>
+      variant="primary"
+      className="rail-preview-button"
+      onClick={onPreview}
+      disabled={!controllerReady || rendering || previewStatus === 'loading'}>
+      {rendering || previewStatus === 'loading' ? 'Previewing…' : 'Preview'}
     </Button>
-  {/each}
+  </div>
 </nav>
 
 <style>
   .section-rail {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
     padding: 27px 14px;
     border-right: 1px solid var(--rule);
     background: var(--surface-subtle);
+  }
+
+  .section-nav-list {
+    display: grid;
+    gap: 2px;
+  }
+
+  .section-rail-actions {
+    margin-top: 18px;
+  }
+
+  :global(.rail-preview-button) {
+    width: 100%;
   }
 
   .section-index {

@@ -62,7 +62,7 @@ Host-side worker runs keep compilation disabled unless `LATEX_COMPILER_ENABLED=t
 
 Account registration and login use Argon2id password hashes and set an HttpOnly `lr_session` cookie. Registering while an anonymous session is supplied transfers that session's projects, documents, revisions, and CV draft to the new account atomically. Anonymous bearer sessions remain supported for existing clients.
 
-CV draft writes use an optimistic `expected_version` field. Send `expected_version: 0` to create the first draft, then send the version returned by the previous write; a stale version returns `409 Conflict`. Draft data is bounded to 1 MiB and responses include the associated project, document, and latest revision metadata. `template_id` stores the selected catalog template; `generated_template_id` records which template produced the persisted source, so changing the selection leaves an older proof explicitly outdated. The render endpoint returns escaped source and its timestamp; it does not enqueue a live compile job.
+CV draft writes use an optimistic `expected_version` field. Send `expected_version: 0` to create the first draft, then send the version returned by the previous write; a stale version returns `409 Conflict`. Draft data is bounded to 1 MiB and responses include the associated project, document, and latest revision metadata. `template_id` stores the selected catalog template; `generated_template_id` records which template produced the persisted source, so changing the selection leaves an older preview explicitly outdated. The render endpoint returns escaped source and its timestamp; it does not enqueue a live compile job.
 
 All application identifiers are PostgreSQL UUIDv7 values generated with `uuidv7()`.
 

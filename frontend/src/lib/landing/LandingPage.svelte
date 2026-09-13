@@ -7,9 +7,9 @@
   import LandingWorkflow from './LandingWorkflow.svelte';
   import HeroProofDesk from './HeroProofDesk.svelte';
 
-  const pageTitle = 'Marginalia — Build the CV. See the proof.';
+  const pageTitle = 'CV Workbench — Build your CV.';
   const pageDescription =
-    'Turn structured career facts into an exact LaTeX source file and a rendered CV proof.';
+    'Turn structured career facts into an exact LaTeX source file and a polished CV.';
   const socialImagePath = '/templates/editorial-v1.webp';
 
   const templates = [
@@ -39,12 +39,12 @@
   $: structuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
-    name: 'Marginalia',
+    name: 'CV Workbench',
     url: canonicalUrl,
     description: pageDescription,
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
-    featureList: ['Structured CV editing', 'Exact LaTeX source', 'Rendered PDF proof']
+    featureList: ['Structured CV editing', 'Exact LaTeX source', 'Rendered PDF']
   };
   $: structuredDataMarkup = `<script type="application/ld+json">${JSON.stringify(structuredData)}\u003c/script>`;
 </script>
@@ -52,17 +52,17 @@
 <svelte:head>
   <title>{pageTitle}</title>
   <meta name="description" content={pageDescription} />
-  <meta name="author" content="Marginalia" />
+  <meta name="author" content="CV Workbench" />
   <meta
     name="robots"
     content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
   <meta
     name="googlebot"
     content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <meta name="application-name" content="Marginalia" />
+  <meta name="application-name" content="CV Workbench" />
   <link rel="canonical" href={canonicalUrl} />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Marginalia" />
+  <meta property="og:site_name" content="CV Workbench" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content={pageTitle} />
   <meta property="og:description" content={pageDescription} />
@@ -72,12 +72,12 @@
   <meta property="og:image:type" content="image/webp" />
   <meta property="og:image:width" content="1020" />
   <meta property="og:image:height" content="1320" />
-  <meta property="og:image:alt" content="Editorial CV template preview from Marginalia" />
+  <meta property="og:image:alt" content="Editorial CV template preview from CV Workbench" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content={pageTitle} />
   <meta name="twitter:description" content={pageDescription} />
   <meta name="twitter:image" content={socialImageUrl} />
-  <meta name="twitter:image:alt" content="Editorial CV template preview from Marginalia" />
+  <meta name="twitter:image:alt" content="Editorial CV template preview from CV Workbench" />
   {@html structuredDataMarkup}
   {#each templates as template}
     <link rel="preload" as="image" href={template.image} />

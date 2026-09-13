@@ -1,14 +1,16 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('shows the proof-led landing page and routes visitors to the builder', async ({ page }) => {
+test('shows the CV Workbench landing page and routes visitors to the builder', async ({ page }) => {
   const apiRequests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/api/')) apiRequests.push(request.url());
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Build the CV\. See the proof\./ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Build the CV\. See the result\./ })
+  ).toBeVisible();
   await expect(
     page.getByText(
       'Enter your experience, review the generated LaTeX, and download the finished PDF.'
@@ -24,7 +26,7 @@ test('shows the proof-led landing page and routes visitors to the builder', asyn
   );
   expect(
     await page.locator('script[type="application/ld+json"]').evaluate((script) => script.innerHTML)
-  ).toContain('Marginalia');
+  ).toContain('CV Workbench');
   expect(apiRequests).toEqual([]);
 
   const previews = page.getByRole('img', { name: /CV template preview/ });
@@ -56,7 +58,9 @@ test('keeps the interactive builder out of search results', async ({ page }) => 
 test('keeps the landing page usable without horizontal overflow on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Build the CV\. See the proof\./ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Build the CV\. See the result\./ })
+  ).toBeVisible();
   const previews = page.getByRole('img', { name: /CV template preview/ });
   await expect(previews).toHaveCount(3);
   for (let index = 0; index < 3; index += 1) {
@@ -73,7 +77,9 @@ test('keeps the landing page usable without horizontal overflow on mobile', asyn
 
 test('has no automatically detectable landing-page accessibility violations', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Build the CV\. See the proof\./ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Build the CV\. See the result\./ })
+  ).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });

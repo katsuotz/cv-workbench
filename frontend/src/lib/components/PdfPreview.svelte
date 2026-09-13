@@ -27,7 +27,7 @@
     void renderPdf(source, currentRender).catch((error) => {
       if (currentRender !== renderId || isCancellation(error)) return;
       renderError =
-        error instanceof Error ? error.message : 'The PDF proof could not be displayed.';
+        error instanceof Error ? error.message : 'The PDF preview could not be displayed.';
       isLoading = false;
       onError(renderError);
     });
@@ -92,7 +92,7 @@
   role="img"
   aria-label={pageCount ? `PDF preview, ${pageCount} pages` : 'PDF preview'}>
   {#if renderError || isLoading}<div class="pdf-status" aria-live="polite">
-      {renderError || 'Loading proof…'}
+      {renderError || 'Loading preview…'}
     </div>{/if}
 </div>
 

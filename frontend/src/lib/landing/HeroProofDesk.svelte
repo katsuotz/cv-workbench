@@ -3,7 +3,7 @@
     <h1 id="hero-title">
       Build the CV.
       <br />
-      <span>See the proof.</span>
+      <span>See the result.</span>
     </h1>
     <p class="hero-lede">
       Enter your experience, review the generated LaTeX, and download the finished PDF.
@@ -26,7 +26,7 @@
     <div
       class="proof-desk"
       role="img"
-      aria-label="A CV moving from structured facts to exact LaTeX source to a rendered PDF proof">
+      aria-label="A CV moving from structured facts to exact LaTeX source to a rendered PDF">
       <div class="desk-stage facts-stage">
         <div class="stage-heading">
           <span class="stage-index">01</span>

@@ -8,19 +8,19 @@ web
 
 ## Users
 
-People creating or updating a professional CV in a focused work session, often switching between structured editing and checking the final document proof.
+People creating or updating a professional CV in a focused work session, often switching between structured editing and checking the final document.
 
 ## Product Purpose
 
-Marginalia helps a user collect the facts of their career, generate a polished CV as XeLaTeX, and inspect the compiled result before downloading it. Success is a usable CV and a trustworthy proof produced without hiding validation or compiler problems.
+CV Workbench helps a user collect the facts of their career, generate a polished CV as XeLaTeX, and inspect the compiled result before downloading it. Success is a usable CV and a trustworthy document produced without hiding validation or compiler problems.
 
 ## Positioning
 
-The builder keeps the structured CV data, exact generated LaTeX source, compiler diagnostics, and rendered PDF proof in one workflow so the user can move from intake to a finished document without leaving the tool.
+The builder keeps the structured CV data, exact generated LaTeX source, compiler diagnostics, and rendered PDF in one workflow so the user can move from intake to a finished document without leaving the tool.
 
 ## Operating Context
 
-The primary workflow is a short, form-led intake followed by a split editor and rendered-proof workspace. Users edit section-by-section, generate on demand, review stale or successful proof states, inspect source when needed, and download PDF or `.tex` output.
+The primary workflow is a short, form-led intake followed by a split editor and rendered-document workspace. Users edit section-by-section, preview on demand, inspect source when needed, and download PDF or `.tex` output.
 
 ## Capabilities and Constraints
 
@@ -28,7 +28,7 @@ The primary workflow is a short, form-led intake followed by a split editor and 
 - Required fields are validated before generation and the first invalid field receives focus.
 - Changes autosave locally when storage is available; editing continues when autosave fails.
 - A backend preview adapter compiles generated LaTeX and returns PDF data or actionable diagnostics.
-- Saved documents with generated source reopen with their proof workspace available.
+- Saved documents with generated source reopen with their preview workspace available.
 - Preserve existing keyboard generation (`Cmd/Ctrl + Enter`), mobile Form/Preview navigation, downloads, source actions, storage schema, generator, preview adapter, and public component behavior.
 - No backend, preview adapter, generator, storage schema, or new dependency changes are in scope.
 
@@ -40,7 +40,7 @@ The current implementation and tests in `frontend/src/lib/components` and `front
 
 - Start with the work the user must finish now.
 - Make required input and recovery paths obvious.
-- Treat the rendered PDF as proof, not decoration.
+- Treat the rendered PDF as the document outcome, not decoration.
 - Keep exact source and diagnostics available without competing with the main workflow.
 - Preserve the user's work through local persistence and resilient editing.
 

@@ -43,7 +43,7 @@
 <fieldset class="template-picker" aria-describedby="template-picker-help">
   <legend>Choose a template</legend>
   <p id="template-picker-help" class="template-picker-help">
-    Choose a layout. View an example before generating your CV.
+    Choose a layout, then preview your CV.
   </p>
   <div class="template-grid" role="radiogroup" aria-label="CV templates">
     {#each templates as template (template.id)}

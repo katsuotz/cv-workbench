@@ -1,7 +1,7 @@
 <header class="site-header">
-  <a class="brand" href="/" aria-label="Marginalia home">
-    <span class="brand-mark">M</span>
-    <span class="brand-name">Marginalia</span>
+  <a class="brand" href="/" aria-label="CV Workbench home">
+    <span class="brand-mark">CV</span>
+    <span class="brand-name">CV Workbench</span>
   </a>
   <nav class="site-nav" aria-label="Main navigation">
     <a href="#how-it-works">How it works</a>

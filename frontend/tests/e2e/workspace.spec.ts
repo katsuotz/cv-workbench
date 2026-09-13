@@ -111,7 +111,9 @@ test('opens a larger example preview from the template picker', async ({ page })
 
   const dialog = page.getByRole('dialog', { name: 'Editorial dossier' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('img', { name: 'Editorial dossier CV template preview' })).toBeVisible();
+  await expect(
+    dialog.getByRole('img', { name: 'Editorial dossier CV template preview' })
+  ).toBeVisible();
   await dialog.getByRole('button', { name: 'Close' }).click();
   await expect(dialog).toBeHidden();
 });

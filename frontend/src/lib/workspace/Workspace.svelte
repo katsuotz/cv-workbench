@@ -373,12 +373,12 @@
     consumeAuthCallback();
     workspaceBootstrapPending = (async () => {
       try {
-        templateCatalog = await backendApi.templates.list();
-        if (!templateCatalog.length) throw new Error('No CV templates are available.');
-        templateId = templateCatalog[0].id;
         const user = await accountService.currentUser();
         if (!active) return;
         authUser = user;
+        templateCatalog = await backendApi.templates.list();
+        if (!templateCatalog.length) throw new Error('No CV templates are available.');
+        templateId = templateCatalog[0].id;
         await sessionController.bootstrap(sessionDraft());
         if (!active) return;
         controller = await setupPreview(

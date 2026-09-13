@@ -90,7 +90,9 @@ const server = createServer(async (request, response) => {
     return;
   }
   if (request.method === 'POST' && path === '/api/v1/sessions/anonymous') {
-    const sessionId = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1] ?? id('session');
+    const currentSessionId = request.headers.cookie?.match(/lr_session=([^;]+)/)?.[1];
+    const sessionId =
+      currentSessionId && !users.has(currentSessionId) ? currentSessionId : id('session');
     response.setHeader('Set-Cookie', `lr_session=${sessionId}; Path=/; SameSite=Lax`);
     json(response, 201, {
       session_id: sessionId,

@@ -1,3 +1,5 @@
+ARG WORKER_RUNTIME_IMAGE=local-worker-runtime
+
 FROM rust:1.93-bookworm AS builder
 
 WORKDIR /app
@@ -22,10 +24,10 @@ EXPOSE 18732
 
 CMD ["latex-renderer-backend"]
 
-FROM debian:bookworm-slim AS worker
+FROM debian:bookworm-slim AS local-worker-runtime
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
         ca-certificates \
         fontconfig \
         fonts-font-awesome \
@@ -37,6 +39,8 @@ RUN apt-get update \
         texlive-latex-extra \
         texlive-xetex \
     && rm -rf /var/lib/apt/lists/*
+
+FROM ${WORKER_RUNTIME_IMAGE} AS worker
 
 WORKDIR /app
 

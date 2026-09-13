@@ -2,6 +2,8 @@
 
 The production stack runs PostgreSQL 19 Beta 3, the Rust API, the XeLaTeX worker, and the static frontend with Docker Compose. The API is published on loopback port `18732`, and the frontend on loopback port `18731`; PostgreSQL has no host port. The existing host Nginx terminates HTTPS and proxies the API, health checks, and frontend to the Compose services.
 
+The XeLaTeX packages and fonts are published separately as the stable `worker-runtime:v1` image. Release worker images contain only the Rust worker binary, so later deployments reuse the runtime layers already present on the server. Bump `WORKER_RUNTIME_TAG` in the release workflow when the runtime Dockerfile or package set changes; the workflow builds the new runtime image when that tag is not present.
+
 Build the frontend with `PUBLIC_SITE_URL=https://cvworkbench.com` so canonical URLs, social
 previews, structured data, and the sitemap point to the public site. The frontend defaults to this
 domain when the variable is not set; use the local origin from `frontend/.env.example` for local
@@ -57,7 +59,7 @@ The production deployment uses `COOKIE_SECURE=true` because HTTPS is active.
 
 ## GitHub Actions release deployment
 
-Pushing a semantic version tag such as `v0.1.7` runs `.github/workflows/release.yml`. Frontend and backend validation, image builds, and GHCR pushes run in parallel. After both image sets are available, the workflow stages the shared Compose and Nginx configuration once, then deploys the frontend and the API/worker services in parallel. The backend rollout starts SQLx migrations through the API and waits for the API and worker; the frontend rollout waits for its HTTP health check before applying the Nginx configuration. The workflow verifies the public HTTPS endpoints after both rollouts.
+Pushing a semantic version tag such as `v0.1.7` runs `.github/workflows/release.yml`. Frontend validation and backend validation run independently; after backend validation, API and worker image builds and pushes run in parallel. After all images are available, the workflow stages the shared Compose and Nginx configuration once, then deploys the frontend and the API/worker services in parallel. Backend image pulls also run concurrently, the backend rollout starts SQLx migrations through the API, and it waits for the API and worker; the frontend rollout waits for its HTTP health check before applying the Nginx configuration. The workflow verifies the public HTTPS endpoints after both rollouts.
 
 Configure these repository secrets before pushing a release tag:
 

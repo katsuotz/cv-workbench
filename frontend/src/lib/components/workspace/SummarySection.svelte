@@ -13,6 +13,7 @@
   export let onAddProfile: () => void;
   export let onRemoveProfile: (id: string) => void;
   export let onMoveProfile: (index: number, direction: -1 | 1) => void;
+  export let linkedinEnabled = true;
   export let importBusy = false;
   export let importNotice = '';
   export let onImportFromLinkedIn: (event: MouseEvent) => void | Promise<void>;
@@ -78,20 +79,22 @@
     bind:value={data.summary} />
 </div>
 
-<div class="linkedin-import">
-  <div>
-    <h3>Import from LinkedIn</h3>
-    <p>Review your LinkedIn profile before it replaces this CV.</p>
+{#if linkedinEnabled}
+  <div class="linkedin-import">
+    <div>
+      <h3>Import from LinkedIn</h3>
+      <p>Review your LinkedIn profile before it replaces this CV.</p>
+    </div>
+    <Button
+      variant="secondary"
+      className="linkedin-import-button"
+      disabled={importBusy}
+      onClick={onImportFromLinkedIn}>
+      {importBusy ? 'Connecting…' : 'Import from LinkedIn'}
+    </Button>
+    {#if importNotice}<p class="linkedin-import-error" role="alert">{importNotice}</p>{/if}
   </div>
-  <Button
-    variant="secondary"
-    className="linkedin-import-button"
-    disabled={importBusy}
-    onClick={onImportFromLinkedIn}>
-    {importBusy ? 'Connecting…' : 'Import from LinkedIn'}
-  </Button>
-  {#if importNotice}<p class="linkedin-import-error" role="alert">{importNotice}</p>{/if}
-</div>
+{/if}
 
 <div class="profile-links">
   <div class="profile-links-heading">

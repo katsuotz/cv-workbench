@@ -16,7 +16,7 @@ The service currently provides anonymous sessions, persisted projects/documents/
 - Repository traits and the existing `Compiler` trait are the explicit dependency-injection boundaries. Concrete PostgreSQL repositories and services are composed in `lib.rs`; no workspace crates are needed yet.
 - PostgreSQL generates UUIDv7 identifiers with `uuidv7()` and stores documents, jobs, diagnostics, and bounded PDF artifacts.
 - Account sessions support password authentication and Google and LinkedIn OpenID Connect authorization-code sign-in. Provider identities are keyed by provider subject, and verified email matching links them to an existing account.
-- LinkedIn import uses a short-lived, server-side pending payload and an approval-gated profile provider; provider access tokens are never returned to the browser or persisted.
+- LinkedIn import uses a short-lived, server-side pending payload and the OIDC userinfo endpoint by default; approved profile providers can supply richer fields, and provider access tokens are never returned to the browser or persisted.
 - The first compile profile is `cv-xelatex`; the worker invokes XeLaTeX with `-no-shell-escape`, bounded time, temporary workspaces, and cleanup.
 - Redis is deferred until distributed queue or rate-limit requirements justify it.
 
@@ -100,7 +100,7 @@ Compile jobs return queued/running/succeeded/failed/cancelled states and structu
 
 Google sign-in uses the same account cookie and requests only `openid email profile`. The backend validates state, nonce, S256 PKCE, the Google issuer and audience, token lifetime, immutable provider subject, and `email_verified`. A successful Google sign-in creates or links an account and transfers the current anonymous project atomically. Google-only accounts have no usable password until a future password-setting flow is added.
 
-LinkedIn login uses the same account cookie, state protections, anonymous transfer, and provider-subject linking. Login requests `openid profile email`; import uses separately configured approved scopes alongside those OIDC identity scopes and fetches a normalized profile server-side. A pending import expires after fifteen minutes. Applying an import requires the current CV version and atomically replaces CV data while clearing generated preview metadata.
+LinkedIn login uses the same account cookie, state protections, anonymous transfer, and provider-subject linking. Login and basic import request `openid profile email`; import defaults to `https://api.linkedin.com/v2/userinfo` and can use separately configured approved scopes and endpoints for richer fields. A pending import expires after fifteen minutes. Applying an import requires the current CV version and atomically replaces CV data while clearing generated preview metadata.
 
 ## Remaining backend work
 

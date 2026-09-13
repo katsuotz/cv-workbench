@@ -22,6 +22,8 @@ pub enum ConfigError {
 
 const MIN_COMPILE_TIMEOUT_SECONDS: u64 = 1;
 const MAX_COMPILE_TIMEOUT_SECONDS: u64 = 90;
+const DEFAULT_LINKEDIN_IMPORT_SCOPES: &str = "openid profile email";
+const DEFAULT_LINKEDIN_IMPORT_PROFILE_URL: &str = "https://api.linkedin.com/v2/userinfo";
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -127,7 +129,10 @@ impl Config {
                     non_empty_env("LINKEDIN_IMPORT_SCOPES"),
                     non_empty_env("LINKEDIN_IMPORT_PROFILE_URL"),
                 ) {
-                    (None, None) => None,
+                    (None, None) => Some(LinkedInImportConfig {
+                        scopes: DEFAULT_LINKEDIN_IMPORT_SCOPES.into(),
+                        profile_endpoint: DEFAULT_LINKEDIN_IMPORT_PROFILE_URL.into(),
+                    }),
                     (Some(scopes), Some(profile_endpoint)) => Some(LinkedInImportConfig {
                         scopes,
                         profile_endpoint,

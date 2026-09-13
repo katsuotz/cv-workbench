@@ -290,9 +290,7 @@ pub async fn linkedin_callback(
     );
     if callback.intent == LinkedInIntent::Import {
         let profile = callback.profile.as_ref().ok_or_else(|| {
-            AppError::BadRequest(
-                "LinkedIn full-profile import returned no approved profile data".into(),
-            )
+            AppError::BadRequest("LinkedIn profile import returned no profile data".into())
         })?;
         state
             .cv_import

@@ -17,6 +17,7 @@ env:
   RELEASE_TAG: ${{ github.ref_name }}
   PUBLIC_API_BASE_URL: https://cvworkbench.com
   PUBLIC_SITE_URL: https://cvworkbench.com
+  PUBLIC_LINKEDIN_ENABLED: "false"
   PUBLIC_PREVIEW_MODE: backend
   IMAGE_NAMESPACE: ghcr.io/katsuotz/generate-kit
 

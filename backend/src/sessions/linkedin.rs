@@ -117,8 +117,7 @@ impl LinkedInAuthService {
                     .filter(|scopes| !scopes.is_empty())
                     .ok_or_else(|| {
                         AppError::BadRequest(
-                            "LinkedIn full-profile import is not approved or configured on this server"
-                                .into(),
+                            "LinkedIn profile import is not configured on this server".into(),
                         )
                     })?;
                 identity_scopes(&scopes)
@@ -210,7 +209,7 @@ impl LinkedInAuthService {
             LinkedInIntent::Import => {
                 if response.profile.is_none() {
                     return Err(AppError::BadRequest(
-                        "LinkedIn full-profile import returned no approved profile data".into(),
+                        "LinkedIn profile import returned no profile data".into(),
                     ));
                 }
                 self.repository
@@ -468,8 +467,7 @@ impl LinkedInProvider for LinkedInHttpProvider {
                 .map(|import| import.profile_endpoint.as_str())
                 .ok_or_else(|| {
                     AppError::BadRequest(
-                        "LinkedIn full-profile import is not approved or configured on this server"
-                            .into(),
+                        "LinkedIn profile import is not configured on this server".into(),
                     )
                 })?;
             let response = self

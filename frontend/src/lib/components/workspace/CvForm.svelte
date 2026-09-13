@@ -25,6 +25,7 @@
   export let errors: CvValidationError[] = [];
   export let notice = '';
   export let fieldError: (path: string) => string | undefined;
+  export let linkedinEnabled = true;
   export let onInput: () => void;
   export let onAdd: (section: EntrySection) => void;
   export let onRemove: (section: EntrySection, id: string) => void;
@@ -75,6 +76,7 @@
         {onAddProfile}
         {onRemoveProfile}
         {onMoveProfile}
+        {linkedinEnabled}
         {importBusy}
         {importNotice}
         {onImportFromLinkedIn} />

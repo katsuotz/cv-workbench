@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde_json::Value;
+use serde_json::{Map, Value, json};
 
 use super::model::{
     Achievement, Certificate, CvData, Education, Experience, Identity, ProfileLink, Project,
@@ -12,6 +12,8 @@ pub fn normalize_profile(profile: &Value) -> Result<CvData, AppError> {
     let object = profile
         .as_object()
         .ok_or_else(|| AppError::BadRequest("LinkedIn profile data must be an object".into()))?;
+    let normalized = normalize_identity_me_profile(object);
+    let object = &normalized;
     let first_name = field(object, &["firstName", "localizedFirstName", "given_name"]);
     let last_name = field(object, &["lastName", "localizedLastName", "family_name"]);
     let full_name = field(object, &["name", "fullName"])
@@ -86,6 +88,35 @@ pub fn normalize_profile(profile: &Value) -> Result<CvData, AppError> {
         certificates: entries(object, &["certifications", "certificates"], map_certificate),
         projects: entries(object, &["projects"], map_project),
     })
+}
+
+fn normalize_identity_me_profile(object: &Map<String, Value>) -> Map<String, Value> {
+    let mut normalized = object.clone();
+    if let Some(basic_info) = object.get("basicInfo").and_then(Value::as_object) {
+        for (key, value) in basic_info {
+            normalized
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
+        }
+    }
+    if !normalized.contains_key("positions") {
+        if let Some(position) = object.get("primaryCurrentPosition") {
+            let mut position = position.clone();
+            if let Some(position) = position.as_object_mut() {
+                if let Some(started_on) = position.remove("startedOn") {
+                    position.insert("start".into(), started_on);
+                }
+                position.insert("current".into(), Value::Bool(true));
+            }
+            normalized.insert("positions".into(), json!([position]));
+        }
+    }
+    if !normalized.contains_key("education") {
+        if let Some(education) = object.get("mostRecentEducation") {
+            normalized.insert("education".into(), json!([education]));
+        }
+    }
+    normalized
 }
 
 fn map_experience(object: &serde_json::Map<String, Value>, index: usize) -> Experience {
@@ -525,5 +556,53 @@ mod tests {
                 .iter()
                 .any(|profile| profile.r#type == "website")
         );
+    }
+
+    #[test]
+    fn maps_oidc_userinfo_profile_to_basic_cv_data() {
+        let profile = serde_json::json!({
+            "sub": "member-123",
+            "name": "Ada Lovelace",
+            "email": "ada@example.com",
+            "email_verified": true
+        });
+        let data = normalize_profile(&profile).unwrap();
+        assert_eq!(data.identity.full_name, "Ada Lovelace");
+        assert_eq!(data.identity.email, "ada@example.com");
+        assert!(data.experience.is_empty());
+    }
+
+    #[test]
+    fn maps_identity_me_profile_details_to_cv_data() {
+        let profile = serde_json::json!({
+            "basicInfo": {
+                "firstName": {"localized": {"en_US": "Ada"}},
+                "lastName": {"localized": {"en_US": "Lovelace"}},
+                "primaryEmailAddress": "ada@example.com",
+                "profileUrl": "https://www.linkedin.com/in/ada-lovelace"
+            },
+            "primaryCurrentPosition": {
+                "title": {"localized": {"en_US": "Engineer"}},
+                "companyName": {"localized": {"en_US": "Analytical Engines"}},
+                "startedOn": {"year": 1842, "month": 1}
+            },
+            "mostRecentEducation": {
+                "schoolName": {"localized": {"en_US": "University"}},
+                "degreeName": {"localized": {"en_US": "Mathematics"}}
+            }
+        });
+        let data = normalize_profile(&profile).unwrap();
+        assert_eq!(data.identity.full_name, "Ada Lovelace");
+        assert_eq!(data.identity.email, "ada@example.com");
+        assert_eq!(
+            data.identity.profiles[0].url,
+            "https://www.linkedin.com/in/ada-lovelace"
+        );
+        assert_eq!(data.experience[0].role, "Engineer");
+        assert_eq!(data.experience[0].organization, "Analytical Engines");
+        assert_eq!(data.experience[0].start, "1842-01");
+        assert!(data.experience[0].current);
+        assert_eq!(data.education[0].institution, "University");
+        assert_eq!(data.education[0].qualification, "Mathematics");
     }
 }

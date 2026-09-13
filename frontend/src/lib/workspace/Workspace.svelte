@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PUBLIC_LINKEDIN_ENABLED } from '$env/static/public';
   import { onMount, tick } from 'svelte';
   import {
     BackendApiError,
@@ -98,6 +99,7 @@
   let sessionController: SessionController;
   let accountService: AccountService;
   let workspaceBootstrapPending: Promise<void> | null = null;
+  const linkedinEnabled = PUBLIC_LINKEDIN_ENABLED !== 'false';
   $: currentFingerprint = fingerprintCv(data);
   $: dirty =
     currentFingerprint !== generatedFingerprint ||
@@ -598,6 +600,7 @@
     {authNotice}
     googleStartUrl={accountService.googleStartUrl()}
     linkedInStartUrl={accountService.linkedInStartUrl('login')}
+    {linkedinEnabled}
     {advanced}
     onAuthMode={openAuth}
     onAuthOpenChange={(open) => (authOpen = open)}
@@ -645,6 +648,7 @@
         {errors}
         {notice}
         {fieldError}
+        {linkedinEnabled}
         {importBusy}
         {importNotice}
         onImportFromLinkedIn={importFromLinkedIn}

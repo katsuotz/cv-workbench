@@ -25,9 +25,13 @@ user or root; the frontend never receives it. For the current same-domain Nginx 
 To enable LinkedIn sign-in, set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and
 `LINKEDIN_REDIRECT_URI`, using `https://cvworkbench.com/api/v1/auth/linkedin/callback` for the
 same-domain Nginx setup. Full-history CV import also requires the approved LinkedIn import scopes,
-`LINKEDIN_IMPORT_SCOPES`, and the corresponding `LINKEDIN_IMPORT_PROFILE_URL`. Keep the client secret
-readable only by the deployment user or root;
-the frontend never receives it.
+`LINKEDIN_IMPORT_SCOPES`, and the corresponding `LINKEDIN_IMPORT_PROFILE_URL`; basic OIDC profile
+import uses `openid profile email` and `https://api.linkedin.com/v2/userinfo`. Keep the client
+secret readable only by the deployment user or root; the frontend never receives it.
+
+The static frontend reads `PUBLIC_LINKEDIN_ENABLED` at build time. Local development enables it in
+`frontend/.env`; the release workflow sets it to `false` for production builds when LinkedIn
+features should be hidden.
 
 ## Start the stack
 

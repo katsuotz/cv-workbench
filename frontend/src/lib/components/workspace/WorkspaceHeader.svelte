@@ -13,6 +13,7 @@
   export let authNotice: string;
   export let googleStartUrl: string;
   export let linkedInStartUrl: string;
+  export let linkedinEnabled = true;
   export let advanced: boolean;
   export let onAuthMode: (mode: 'login' | 'register') => void;
   export let onAuthOpenChange: (open: boolean) => void;
@@ -109,14 +110,16 @@
               onClick={onGoogleAuth}>
               Continue with Google
             </ButtonLink>
-            <ButtonLink
-              href={linkedInStartUrl}
-              variant="secondary"
-              className="linkedin-auth"
-              disabled={authBusy}
-              onClick={onLinkedInAuth}>
-              Continue with LinkedIn
-            </ButtonLink>
+            {#if linkedinEnabled}
+              <ButtonLink
+                href={linkedInStartUrl}
+                variant="secondary"
+                className="linkedin-auth"
+                disabled={authBusy}
+                onClick={onLinkedInAuth}>
+                Continue with LinkedIn
+              </ButtonLink>
+            {/if}
             <Button
               variant="text"
               className="account-switch"

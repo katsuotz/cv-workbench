@@ -7,9 +7,9 @@
   import LandingWorkflow from './LandingWorkflow.svelte';
   import HeroProofDesk from './HeroProofDesk.svelte';
 
-  const pageTitle = 'CV Workbench — ATS-Friendly CV Builder';
+  const pageTitle = 'Free ATS-Friendly CV Builder | CV Workbench';
   const pageDescription =
-    'Build an ATS-friendly CV with structured sections, clear formatting, exact LaTeX source, and a polished PDF for job applications.';
+    'Create a free, ATS-friendly CV with structured sections, polished templates, exact LaTeX source, and a downloadable PDF. No account required to start.';
   const defaultSiteOrigin = import.meta.env.DEV ? '' : 'https://cvworkbench.com';
   const socialImagePath = '/templates/editorial-v1.webp';
 
@@ -73,6 +73,7 @@
         applicationSubCategory: 'ATS-friendly CV builder',
         operatingSystem: 'Web browser',
         browserRequirements: 'Requires JavaScript',
+        isAccessibleForFree: true,
         image: socialImageUrl,
         inLanguage: 'en-US',
         featureList: ['ATS-friendly CV structure', 'Exact LaTeX source', 'Rendered PDF'],

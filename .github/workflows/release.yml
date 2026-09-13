@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -62,7 +62,7 @@ jobs:
         run: bun run --cwd frontend build
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -101,10 +101,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -123,10 +123,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -161,7 +161,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure deployment SSH
         shell: bash

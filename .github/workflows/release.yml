@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.ref_name }}
+      PUBLIC_API_BASE_URL: https://cvworkbench.com
+      PUBLIC_SITE_URL: https://cvworkbench.com
+      PUBLIC_PREVIEW_MODE: backend
 
     steps:
       - name: Check out release
@@ -61,10 +64,6 @@ jobs:
         run: cargo test --manifest-path backend/Cargo.toml --locked
 
       - name: Build production frontend
-        env:
-          PUBLIC_API_BASE_URL: https://cvworkbench.com
-          PUBLIC_SITE_URL: https://cvworkbench.com
-          PUBLIC_PREVIEW_MODE: backend
         run: bun run --cwd frontend build
 
       - name: Build API image

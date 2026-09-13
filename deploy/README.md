@@ -53,7 +53,7 @@ The production deployment uses `COOKIE_SECURE=true` because HTTPS is active.
 
 ## GitHub Actions release deployment
 
-Pushing a semantic version tag such as `v0.1.7` runs `.github/workflows/release.yml`. The workflow validates the Bun frontend and Rust backend, builds the production frontend and tagged Docker images, pushes the API, worker, and frontend images to GHCR, stages the host Nginx configuration, pulls the images on the server, recreates the services, and verifies the public HTTPS endpoints.
+Pushing a semantic version tag such as `v0.1.7` runs `.github/workflows/release.yml`. Frontend and backend validation, image builds, and GHCR pushes run in parallel. After both image sets are available, the workflow stages the shared Compose and Nginx configuration once, then deploys the frontend and the API/worker services in parallel. The backend rollout starts SQLx migrations through the API and waits for the API and worker; the frontend rollout waits for its HTTP health check before applying the Nginx configuration. The workflow verifies the public HTTPS endpoints after both rollouts.
 
 Configure these repository secrets before pushing a release tag:
 

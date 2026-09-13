@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 permissions:
   contents: read
@@ -13,16 +13,26 @@ concurrency:
   group: cvworkbench-production
   cancel-in-progress: false
 
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    env:
-      RELEASE_TAG: ${{ github.ref_name }}
-      PUBLIC_API_BASE_URL: https://cvworkbench.com
-      PUBLIC_SITE_URL: https://cvworkbench.com
-      PUBLIC_PREVIEW_MODE: backend
-      IMAGE_NAMESPACE: ghcr.io/katsuotz/generate-kit
+env:
+  RELEASE_TAG: ${{ github.ref_name }}
+  PUBLIC_API_BASE_URL: https://cvworkbench.com
+  PUBLIC_SITE_URL: https://cvworkbench.com
+  PUBLIC_PREVIEW_MODE: backend
+  IMAGE_NAMESPACE: ghcr.io/katsuotz/generate-kit
 
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+  build-frontend:
+    needs: validate-release
+    runs-on: ubuntu-latest
     steps:
       - name: Check out release
         uses: actions/checkout@v4
@@ -30,19 +40,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.2'
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          components: rustfmt
-
-      - name: Validate release tag
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          bun-version: "1.4.2"
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
@@ -56,6 +54,35 @@ jobs:
       - name: Test frontend
         run: bun run --cwd frontend test
 
+      - name: Build production frontend
+        run: bun run --cwd frontend build
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build frontend image
+        run: docker build --tag "$IMAGE_NAMESPACE/frontend:$RELEASE_TAG" --file deploy/frontend.Dockerfile .
+
+      - name: Push frontend image
+        run: docker push "$IMAGE_NAMESPACE/frontend:$RELEASE_TAG"
+
+  build-backend:
+    needs: validate-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+
       - name: Check backend formatting
         run: cargo fmt --manifest-path backend/Cargo.toml -- --check
 
@@ -65,17 +92,11 @@ jobs:
       - name: Test backend
         run: cargo test --manifest-path backend/Cargo.toml --locked
 
-      - name: Build production frontend
-        run: bun run --cwd frontend build
-
       - name: Build API image
         run: docker build --target api --tag "$IMAGE_NAMESPACE/api:$RELEASE_TAG" --file backend/Dockerfile backend
 
       - name: Build worker image
         run: docker build --target worker --tag "$IMAGE_NAMESPACE/worker:$RELEASE_TAG" --file backend/Dockerfile backend
-
-      - name: Build frontend image
-        run: docker build --tag "$IMAGE_NAMESPACE/frontend:$RELEASE_TAG" --file deploy/frontend.Dockerfile .
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -84,13 +105,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push release images
+      - name: Push backend images
         shell: bash
         run: |
           set -euo pipefail
           docker push "$IMAGE_NAMESPACE/api:$RELEASE_TAG"
           docker push "$IMAGE_NAMESPACE/worker:$RELEASE_TAG"
-          docker push "$IMAGE_NAMESPACE/frontend:$RELEASE_TAG"
+
+  prepare-deployment:
+    needs: [build-frontend, build-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release
+        uses: actions/checkout@v4
 
       - name: Configure deployment SSH
         shell: bash
@@ -139,7 +166,7 @@ jobs:
             -i "$HOME/.ssh/id_ed25519" \
             "$DEPLOY_USER@$DEPLOY_HOST" "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
 
-      - name: Deploy release
+      - name: Prepare release configuration
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -150,14 +177,12 @@ jobs:
             -i "$HOME/.ssh/id_ed25519" \
             "$DEPLOY_USER@$DEPLOY_HOST" "RELEASE_TAG='$RELEASE_TAG' bash -s" <<'REMOTE'
           set -euo pipefail
-          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
 
           app_dir=/opt/cvworkbench
           compose_file="$app_dir/compose.production.yaml"
           compose_next="$app_dir/compose.production.yaml.next"
           nginx_site=/etc/nginx/sites-available/cvworkbench
           nginx_next=/etc/nginx/sites-available/cvworkbench.next
-          nginx_backup=/etc/nginx/sites-available/cvworkbench.previous
           compose_archive=/tmp/compose.production.yaml
           nginx_archive=/tmp/nginx-cvworkbench.conf
 
@@ -173,7 +198,6 @@ jobs:
           install -m 644 "$compose_archive" "$compose_next"
           install -m 644 "$nginx_archive" "$nginx_next"
           rm -f "$compose_archive" "$nginx_archive"
-
           mv -f "$compose_next" "$compose_file"
 
           set_env_value() {
@@ -195,13 +219,55 @@ jobs:
 
           cd "$app_dir"
           docker compose -f "$compose_file" config --quiet
-          docker compose -f "$compose_file" pull api worker frontend
-          docker compose -f "$compose_file" up -d --no-build api worker frontend
+          REMOTE
+
+  deploy-frontend:
+    needs: prepare-deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure deployment SSH
+        shell: bash
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy frontend
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+            -i "$HOME/.ssh/id_ed25519" \
+            "$DEPLOY_USER@$DEPLOY_HOST" "RELEASE_TAG='$RELEASE_TAG' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          app_dir=/opt/cvworkbench
+          compose_file="$app_dir/compose.production.yaml"
+          nginx_site=/etc/nginx/sites-available/cvworkbench
+          nginx_next=/etc/nginx/sites-available/cvworkbench.next
+          nginx_backup=/etc/nginx/sites-available/cvworkbench.previous
+          lock_file="$app_dir/.deploy.lock"
+
+          cd "$app_dir"
+          docker pull "ghcr.io/katsuotz/generate-kit/frontend:$RELEASE_TAG"
+          (
+            flock 9
+            docker compose -f "$compose_file" up -d --no-build frontend
+          ) 9>"$lock_file"
 
           for attempt in $(seq 1 30); do
-            if curl -fsS -o /dev/null http://127.0.0.1:18732/health/live && \
-              curl -fsS -o /dev/null http://127.0.0.1:18732/health/ready && \
-              curl -fsS -o /dev/null http://127.0.0.1:18731/; then
+            if curl -fsS -o /dev/null http://127.0.0.1:18731/; then
               break
             fi
             if [ "$attempt" = 30 ]; then
@@ -210,20 +276,120 @@ jobs:
             sleep 2
           done
 
-          cp -a "$nginx_site" "$nginx_backup"
-          mv -f "$nginx_next" "$nginx_site"
-          if ! nginx -t; then
-            mv -f "$nginx_backup" "$nginx_site"
-            nginx -t
-            exit 1
-          fi
-          systemctl reload nginx
-          rm -f "$nginx_backup"
+          (
+            flock 9
+            cp -a "$nginx_site" "$nginx_backup"
+            mv -f "$nginx_next" "$nginx_site"
+            if ! nginx -t; then
+              mv -f "$nginx_backup" "$nginx_site"
+              nginx -t
+              exit 1
+            fi
+            systemctl reload nginx
+            rm -f "$nginx_backup"
+          ) 9>"$lock_file"
 
-          docker compose -f "$compose_file" ps
+          docker compose -f "$compose_file" ps frontend
           REMOTE
 
+  deploy-backend:
+    needs: prepare-deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure deployment SSH
+        shell: bash
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy backend
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+            -i "$HOME/.ssh/id_ed25519" \
+            "$DEPLOY_USER@$DEPLOY_HOST" "RELEASE_TAG='$RELEASE_TAG' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          app_dir=/opt/cvworkbench
+          compose_file="$app_dir/compose.production.yaml"
+          lock_file="$app_dir/.deploy.lock"
+
+          cd "$app_dir"
+          docker pull "ghcr.io/katsuotz/generate-kit/api:$RELEASE_TAG"
+          docker pull "ghcr.io/katsuotz/generate-kit/worker:$RELEASE_TAG"
+          (
+            flock 9
+            docker compose -f "$compose_file" up -d --no-build api worker
+          ) 9>"$lock_file"
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:18732/health/live && \
+              curl -fsS -o /dev/null http://127.0.0.1:18732/health/ready && \
+              worker_id="$(docker compose -f "$compose_file" ps -q worker)" && \
+              [ -n "$worker_id" ] && \
+              [ "$(docker inspect --format '{{.State.Status}}' "$worker_id")" = running ]; then
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              exit 1
+            fi
+            sleep 2
+          done
+
+          docker compose -f "$compose_file" ps api worker
+          REMOTE
+
+  verify-public-deployment:
+    needs: [deploy-frontend, deploy-backend]
+    if: ${{ needs.deploy-frontend.result == 'success' && needs.deploy-backend.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Verify public deployment
         run: |
           curl --fail --silent --show-error --output /dev/null https://cvworkbench.com/
           curl --fail --silent --show-error --output /dev/null https://cvworkbench.com/health/live
+
+  cleanup-deployment:
+    if: ${{ always() }}
+    needs: [deploy-frontend, deploy-backend, verify-public-deployment]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure deployment SSH
+        shell: bash
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_PRIVATE_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+      - name: Log out deployment server from GHCR
+        continue-on-error: true
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+            -i "$HOME/.ssh/id_ed25519" \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'docker logout ghcr.io >/dev/null 2>&1 || true'

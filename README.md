@@ -91,7 +91,7 @@ Frontend values are read at build time from frontend/.env:
 | PUBLIC_API_BASE_URL | http://localhost:18732 | Backend base URL |
 | PUBLIC_SITE_URL | http://localhost:5173 | Canonical site and metadata URL |
 | PUBLIC_LINKEDIN_ENABLED | true | Shows or hides LinkedIn features |
-| PUBLIC_GOOGLE_TAG_ID | empty | Optional production analytics ID |
+| PUBLIC_GOOGLE_TAG_ID | G-M3EY6389QN | Google Analytics measurement ID |
 
 Backend values are read from backend/.env. The example file includes database connection, CORS origin, API binding, session, compiler, cookie, Google, and LinkedIn settings. Each provider requires its client ID, client secret, and redirect URI; provider setup and callback requirements are documented in [backend/README.md](backend/README.md).
 

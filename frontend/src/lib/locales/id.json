@@ -1,0 +1,101 @@
+{
+  "locale": "id",
+  "htmlLang": "id",
+  "seo": {
+    "title": "CV Workbench — Pembuat CV Ramah ATS",
+    "description": "Buat CV gratis yang ramah ATS dengan bagian terstruktur, sumber LaTeX persis, dan PDF yang rapi. Tidak perlu akun untuk memulai.",
+    "ogLocale": "id_ID",
+    "inLanguage": "id-ID",
+    "socialImageAlt": "Pratinjau templat CV ramah ATS dari CV Workbench",
+    "applicationSubCategory": "Pembuat CV ramah ATS",
+    "featureList": ["Struktur CV ramah ATS", "Sumber LaTeX persis", "PDF hasil render"]
+  },
+  "header": {
+    "homeLabel": "Beranda CV Workbench",
+    "navigationLabel": "Navigasi utama",
+    "languageLabel": "Bahasa",
+    "howItWorks": "Cara kerja",
+    "templates": "Templat",
+    "openBuilder": "Buka pembuat"
+  },
+  "hero": {
+    "titleLead": "Buat",
+    "titleAccent": "CV ramah ATS",
+    "titleTail": "Anda.",
+    "titleResult": "Lihat hasilnya.",
+    "lede": "Buat CV yang jelas dan terstruktur untuk sistem pelacakan pelamar, tinjau LaTeX yang dihasilkan, lalu unduh PDF final.",
+    "startBuilding": "Mulai membuat",
+    "seeTemplates": "Lihat templat",
+    "noAccount": "Tidak perlu akun untuk memulai.",
+    "proofLabel": "CV ramah ATS yang berpindah dari fakta terstruktur ke sumber LaTeX persis lalu ke PDF hasil render",
+    "stages": {
+      "facts": "Fakta terstruktur",
+      "source": "LaTeX persis",
+      "pdf": "PDF hasil render",
+      "factsRows": [
+        { "key": "nama", "value": "Ada Lovelace" },
+        { "key": "peran", "value": "Penyair matematika" },
+        { "key": "karya", "value": "Mesin Analitis" }
+      ],
+      "sourceSummary": "Ringkasan",
+      "sourceSummaryLine1": "Akun terperinci tentang",
+      "sourceSummaryLine2": "pekerjaan yang Anda lakukan.",
+      "sourceExperience": "Pengalaman",
+      "sourceExperienceValue": "Mesin Analitis",
+      "compiler": "XeLaTeX",
+      "sourceFile": "source.tex"
+    }
+  },
+  "templates": {
+    "title": "Pilih templat ramah ATS.",
+    "description": "Pilih tata letak yang jelas untuk pengalaman Anda. Anda dapat mengganti templat sebelum membuat CV.",
+    "items": [
+      {
+        "id": "editorial-v1",
+        "name": "Dossier editorial",
+        "description": "Halaman terstruktur yang tenang untuk karya bermakna.",
+        "image": "/templates/editorial-v1.webp",
+        "imageAlt": "Pratinjau templat CV dossier editorial"
+      },
+      {
+        "id": "compact-v1",
+        "name": "Sinyal ringkas",
+        "description": "Tata letak padat untuk pengalaman yang luas.",
+        "image": "/templates/compact-v1.webp",
+        "imageAlt": "Pratinjau templat CV sinyal ringkas"
+      },
+      {
+        "id": "modern-v1",
+        "name": "Hierarki modern",
+        "description": "Tata letak kontemporer dengan aksen yang lebih kuat.",
+        "image": "/templates/modern-v1.webp",
+        "imageAlt": "Pratinjau templat CV hierarki modern"
+      }
+    ]
+  },
+  "workflow": {
+    "title": "Begini cara kerjanya.",
+    "steps": [
+      {
+        "title": "Bangun struktur siap ATS",
+        "description": "Tambahkan pengalaman, keahlian, pendidikan, dan pencapaian dalam bagian yang jelas dan mudah dipindai."
+      },
+      {
+        "title": "Periksa sumber",
+        "description": "Buat XeLaTeX persis, pertahankan sumber tetap terlihat, dan lihat catatan compiler saat ada yang perlu diperhatikan."
+      },
+      {
+        "title": "Unduh CV Anda",
+        "description": "Periksa halaman hasil render, lalu unduh PDF dan sumber yang menghasilkannya."
+      }
+    ]
+  },
+  "cta": {
+    "title": "Buat CV ramah ATS Anda.",
+    "startBuilding": "Mulai membuat"
+  },
+  "footer": {
+    "homeLabel": "Beranda CV Workbench",
+    "builtBy": "Dibuat oleh"
+  }
+}

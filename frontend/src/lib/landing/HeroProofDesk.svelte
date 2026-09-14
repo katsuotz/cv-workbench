@@ -1,52 +1,49 @@
+<script lang="ts">
+  import type { LandingCopy } from '$lib/i18n';
+
+  export let copy: LandingCopy['hero'];
+</script>
+
 <section class="hero section-frame" aria-labelledby="hero-title">
   <div class="hero-copy">
     <h1 id="hero-title">
-      Build an <span class="ats-term">ATS-friendly</span>
-      CV.
+      {copy.titleLead}
+      <span class="ats-term">{copy.titleAccent}</span>
+      {copy.titleTail}
       <br />
-      <span>See the result.</span>
+      <span>{copy.titleResult}</span>
     </h1>
-    <p class="hero-lede">
-      Create a clear, structured CV for applicant tracking systems, review the generated LaTeX, and
-      download the finished PDF.
-    </p>
+    <p class="hero-lede">{copy.lede}</p>
     <div class="hero-actions">
       <a class="button button-primary button-large" href="/app">
-        Start building <span aria-hidden="true">→</span>
+        {copy.startBuilding}
+        <span aria-hidden="true">→</span>
       </a>
       <a class="text-link" href="#templates">
-        See the templates <span aria-hidden="true">↓</span>
+        {copy.seeTemplates}
+        <span aria-hidden="true">↓</span>
       </a>
     </div>
     <p class="hero-note">
       <span class="note-rule" aria-hidden="true"></span>
-      No account required to start.
+      {copy.noAccount}
     </p>
   </div>
 
   <div class="desk-wrap">
-    <div
-      class="proof-desk"
-      role="img"
-      aria-label="An ATS-friendly CV moving from structured facts to exact LaTeX source to a rendered PDF">
+    <div class="proof-desk" role="img" aria-label={copy.proofLabel}>
       <div class="desk-stage facts-stage">
         <div class="stage-heading">
           <span class="stage-index">01</span>
-          <strong>Structured facts</strong>
+          <strong>{copy.stages.facts}</strong>
         </div>
         <div class="fact-list">
-          <div class="fact-row">
-            <span class="fact-key">name</span>
-            <span>Ada Lovelace</span>
-          </div>
-          <div class="fact-row">
-            <span class="fact-key">role</span>
-            <span>Mathematical poet</span>
-          </div>
-          <div class="fact-row">
-            <span class="fact-key">work</span>
-            <span>Analytical engine</span>
-          </div>
+          {#each copy.stages.factsRows as row}
+            <div class="fact-row">
+              <span class="fact-key">{row.key}</span>
+              <span>{row.value}</span>
+            </div>
+          {/each}
         </div>
       </div>
       <div class="desk-connector" aria-hidden="true">
@@ -56,17 +53,17 @@
       <div class="desk-stage source-stage">
         <div class="stage-heading">
           <span class="stage-index">02</span>
-          <strong>Exact LaTeX</strong>
+          <strong>{copy.stages.source}</strong>
         </div>
-        <pre aria-hidden="true"><code><span>\section</span>&#123;Summary&#125;
-<i>A precise account of</i>
-<i>the work you do.</i>
+        <pre aria-hidden="true"><code><span>\section</span>&#123;{copy.stages.sourceSummary}&#125;
+<i>{copy.stages.sourceSummaryLine1}</i>
+<i>{copy.stages.sourceSummaryLine2}</i>
 
-<span>\entry</span>&#123;Experience&#125;
-  &#123;Analytical Engine&#125;</code></pre>
+<span>\entry</span>&#123;{copy.stages.sourceExperience}&#125;
+  &#123;{copy.stages.sourceExperienceValue}&#125;</code></pre>
         <div class="source-meta">
-          <span>XeLaTeX</span>
-          <span>source.tex</span>
+          <span>{copy.stages.compiler}</span>
+          <span>{copy.stages.sourceFile}</span>
         </div>
       </div>
       <div class="desk-connector" aria-hidden="true">
@@ -76,7 +73,7 @@
       <div class="desk-stage pdf-stage">
         <div class="stage-heading">
           <span class="stage-index">03</span>
-          <strong>Rendered PDF</strong>
+          <strong>{copy.stages.pdf}</strong>
         </div>
         <div class="mini-paper">
           <div class="mini-paper-heading">

@@ -1,10 +1,17 @@
+<script lang="ts">
+  import type { LandingCopy } from '$lib/i18n';
+
+  export let copy: LandingCopy['footer'];
+</script>
+
 <footer class="site-footer section-frame">
-  <a class="brand footer-brand" href="/" aria-label="CV Workbench home">
+  <a class="brand footer-brand" href="/" aria-label={copy.homeLabel}>
     <span class="brand-mark">CV</span>
     <span class="brand-name">CV Workbench</span>
   </a>
   <p class="footer-credit">
-    Built by <a href="https://katsuotz.com">katsuotz.com</a>
+    {copy.builtBy}
+    <a href="https://katsuotz.com">katsuotz.com</a>
   </p>
 </footer>
 

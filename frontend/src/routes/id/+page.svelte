@@ -2,4 +2,4 @@
   import LandingPage from '$lib/landing/LandingPage.svelte';
 </script>
 
-<LandingPage locale="en" />
+<LandingPage locale="id" />

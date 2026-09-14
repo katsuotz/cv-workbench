@@ -1,35 +1,23 @@
+<script lang="ts">
+  import type { LandingCopy } from '$lib/i18n';
+
+  export let copy: LandingCopy['workflow'];
+</script>
+
 <section id="how-it-works" class="workflow section-frame" aria-labelledby="workflow-title">
   <div class="workflow-intro">
-    <h2 id="workflow-title">How it works.</h2>
+    <h2 id="workflow-title">{copy.title}</h2>
   </div>
   <ol class="workflow-list">
-    <li>
-      <div class="workflow-marker" aria-hidden="true">01</div>
-      <div>
-        <h3>Build an ATS-ready structure</h3>
-        <p>
-          Add your experience, skills, education, and achievements in clear sections built for quick
-          scanning.
-        </p>
-      </div>
-    </li>
-    <li>
-      <div class="workflow-marker" aria-hidden="true">02</div>
-      <div>
-        <h3>Review the source</h3>
-        <p>
-          Generate exact XeLaTeX, keep the source visible, and see compiler notes when something
-          needs attention.
-        </p>
-      </div>
-    </li>
-    <li>
-      <div class="workflow-marker" aria-hidden="true">03</div>
-      <div>
-        <h3>Download your CV</h3>
-        <p>Review the rendered pages, then download the PDF and the source that produced it.</p>
-      </div>
-    </li>
+    {#each copy.steps as step, index}
+      <li>
+        <div class="workflow-marker" aria-hidden="true">{String(index + 1).padStart(2, '0')}</div>
+        <div>
+          <h3>{step.title}</h3>
+          <p>{step.description}</p>
+        </div>
+      </li>
+    {/each}
   </ol>
 </section>
 

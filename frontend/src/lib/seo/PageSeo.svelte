@@ -9,11 +9,18 @@
   export let canonicalPath: string | undefined = undefined;
   export let socialImagePath = '/templates/editorial-v1.webp';
   export let socialImageAlt = 'ATS-friendly CV template preview from CV Workbench';
+  export let ogLocale: string | undefined = undefined;
+  export let alternatePaths: Array<{ hreflang: string; path: string }> = [];
   export let structuredData: Record<string, unknown> | undefined = undefined;
 
   $: siteOrigin = resolveSiteOrigin($page.url.origin);
   $: canonicalUrl = canonicalPath ? absoluteUrl(siteOrigin, canonicalPath) : '';
   $: socialImageUrl = absoluteUrl(siteOrigin, socialImagePath);
+  $: resolvedOgLocale = ogLocale ?? 'en_US';
+  $: alternateUrls = alternatePaths.map((alternate) => ({
+    ...alternate,
+    href: absoluteUrl(siteOrigin, alternate.path)
+  }));
   $: structuredDataMarkup = structuredData
     ? `<script type="application/ld+json">${JSON.stringify(structuredData)}\u003c/script>`
     : '';
@@ -27,11 +34,17 @@
   <meta name="googlebot" content={robots} />
   {#if indexable && canonicalPath}
     <link rel="canonical" href={canonicalUrl} />
-    <link rel="alternate" hreflang="en" href={canonicalUrl} />
-    <link rel="alternate" hreflang="x-default" href={canonicalUrl} />
+    {#if alternateUrls.length > 0}
+      {#each alternateUrls as alternate}
+        <link rel="alternate" hreflang={alternate.hreflang} href={alternate.href} />
+      {/each}
+    {:else}
+      <link rel="alternate" hreflang="en" href={canonicalUrl} />
+      <link rel="alternate" hreflang="x-default" href={canonicalUrl} />
+    {/if}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
-    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale" content={resolvedOgLocale} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />

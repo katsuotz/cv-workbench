@@ -19,6 +19,7 @@ test('shows the CV Workbench landing page and routes visitors to the builder', a
   await expect(page.getByRole('region', { name: 'CV form builder' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Open builder' })).toHaveAttribute('href', '/app');
   await expect(page).toHaveTitle('CV Workbench — ATS-Friendly CV Builder');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     'content',
     /ATS-friendly CV.*structured sections.*exact LaTeX source.*polished PDF/
@@ -49,6 +50,42 @@ test('shows the CV Workbench landing page and routes visitors to the builder', a
       await previews.nth(index).evaluate((image) => (image as HTMLImageElement).naturalWidth)
     ).toBeGreaterThan(0);
   }
+});
+
+test('serves the Indonesian landing page with localized copy and SEO', async ({ page }) => {
+  await page.goto('/id');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'id');
+  await expect(
+    page.getByRole('heading', { name: /Buat CV ramah ATS Anda\. Lihat hasilnya\./ })
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      'Buat CV yang jelas dan terstruktur untuk sistem pelacakan pelamar, tinjau LaTeX yang dihasilkan, lalu unduh PDF final.'
+    )
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Buka pembuat' })).toHaveAttribute('href', '/app');
+  await expect(page).toHaveTitle('CV Workbench — Pembuat CV Ramah ATS');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/id$/);
+  await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute('href', /\/$/);
+  await expect(page.locator('link[rel="alternate"][hreflang="id"]')).toHaveAttribute(
+    'href',
+    /\/id$/
+  );
+  await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+    'href',
+    /\/$/
+  );
+  await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'id_ID');
+
+  const structuredData = JSON.parse(
+    await page.locator('script[type="application/ld+json"]').evaluate((script) => script.innerHTML)
+  );
+  expect(structuredData['@graph']).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ '@type': 'WebSite', inLanguage: 'id-ID' }),
+      expect.objectContaining({ '@type': 'WebApplication', inLanguage: 'id-ID' })
+    ])
+  );
 });
 
 test('publishes crawl and AI discovery files for the public site', async ({ request }) => {

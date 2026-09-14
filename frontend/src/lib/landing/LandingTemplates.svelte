@@ -1,20 +1,16 @@
 <script lang="ts">
-  export let templates: Array<{
-    id: string;
-    name: string;
-    description: string;
-    image: string;
-  }>;
+  import type { LandingCopy, LandingTemplate } from '$lib/i18n';
+
+  export let copy: LandingCopy['templates'];
+  export let templates: LandingTemplate[];
 </script>
 
 <section id="templates" class="templates section-frame" aria-labelledby="templates-title">
   <div class="section-heading">
     <div>
-      <h2 id="templates-title">Choose an ATS-friendly template.</h2>
+      <h2 id="templates-title">{copy.title}</h2>
     </div>
-    <p>
-      Pick a clear layout for your experience. You can switch templates before generating your CV.
-    </p>
+    <p>{copy.description}</p>
   </div>
   <div class="template-grid">
     {#each templates as template}
@@ -22,7 +18,7 @@
         <div class="template-image-wrap">
           <img
             src={template.image}
-            alt={`${template.name} CV template preview`}
+            alt={template.imageAlt}
             width="612"
             height="792"
             loading="eager"

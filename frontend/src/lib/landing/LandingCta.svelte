@@ -1,9 +1,16 @@
+<script lang="ts">
+  import type { LandingCopy } from '$lib/i18n';
+
+  export let copy: LandingCopy['cta'];
+</script>
+
 <section class="final-cta section-frame" aria-labelledby="cta-title">
   <div class="cta-copy">
-    <h2 id="cta-title">Build your ATS-friendly CV.</h2>
+    <h2 id="cta-title">{copy.title}</h2>
   </div>
   <a class="button button-light button-large" href="/app">
-    Start building <span aria-hidden="true">→</span>
+    {copy.startBuilding}
+    <span aria-hidden="true">→</span>
   </a>
 </section>
 

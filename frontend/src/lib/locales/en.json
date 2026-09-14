@@ -1,0 +1,101 @@
+{
+  "locale": "en",
+  "htmlLang": "en",
+  "seo": {
+    "title": "CV Workbench — ATS-Friendly CV Builder",
+    "description": "Create a free, ATS-friendly CV with structured sections, exact LaTeX source, and a polished PDF. No account required to start.",
+    "ogLocale": "en_US",
+    "inLanguage": "en-US",
+    "socialImageAlt": "ATS-friendly CV template preview from CV Workbench",
+    "applicationSubCategory": "ATS-friendly CV builder",
+    "featureList": ["ATS-friendly CV structure", "Exact LaTeX source", "Rendered PDF"]
+  },
+  "header": {
+    "homeLabel": "CV Workbench home",
+    "navigationLabel": "Main navigation",
+    "languageLabel": "Language",
+    "howItWorks": "How it works",
+    "templates": "Templates",
+    "openBuilder": "Open builder"
+  },
+  "hero": {
+    "titleLead": "Build an",
+    "titleAccent": "ATS-friendly",
+    "titleTail": "CV.",
+    "titleResult": "See the result.",
+    "lede": "Create a clear, structured CV for applicant tracking systems, review the generated LaTeX, and download the finished PDF.",
+    "startBuilding": "Start building",
+    "seeTemplates": "See the templates",
+    "noAccount": "No account required to start.",
+    "proofLabel": "An ATS-friendly CV moving from structured facts to exact LaTeX source to a rendered PDF",
+    "stages": {
+      "facts": "Structured facts",
+      "source": "Exact LaTeX",
+      "pdf": "Rendered PDF",
+      "factsRows": [
+        { "key": "name", "value": "Ada Lovelace" },
+        { "key": "role", "value": "Mathematical poet" },
+        { "key": "work", "value": "Analytical engine" }
+      ],
+      "sourceSummary": "Summary",
+      "sourceSummaryLine1": "A precise account of",
+      "sourceSummaryLine2": "the work you do.",
+      "sourceExperience": "Experience",
+      "sourceExperienceValue": "Analytical Engine",
+      "compiler": "XeLaTeX",
+      "sourceFile": "source.tex"
+    }
+  },
+  "templates": {
+    "title": "Choose an ATS-friendly template.",
+    "description": "Pick a clear layout for your experience. You can switch templates before generating your CV.",
+    "items": [
+      {
+        "id": "editorial-v1",
+        "name": "Editorial dossier",
+        "description": "A quiet, structured page for thoughtful work.",
+        "image": "/templates/editorial-v1.webp",
+        "imageAlt": "Editorial dossier CV template preview"
+      },
+      {
+        "id": "compact-v1",
+        "name": "Compact signal",
+        "description": "A denser layout for broad experience.",
+        "image": "/templates/compact-v1.webp",
+        "imageAlt": "Compact signal CV template preview"
+      },
+      {
+        "id": "modern-v1",
+        "name": "Modern hierarchy",
+        "description": "A contemporary layout with a stronger accent.",
+        "image": "/templates/modern-v1.webp",
+        "imageAlt": "Modern hierarchy CV template preview"
+      }
+    ]
+  },
+  "workflow": {
+    "title": "How it works.",
+    "steps": [
+      {
+        "title": "Build an ATS-ready structure",
+        "description": "Add your experience, skills, education, and achievements in clear sections built for quick scanning."
+      },
+      {
+        "title": "Review the source",
+        "description": "Generate exact XeLaTeX, keep the source visible, and see compiler notes when something needs attention."
+      },
+      {
+        "title": "Download your CV",
+        "description": "Review the rendered pages, then download the PDF and the source that produced it."
+      }
+    ]
+  },
+  "cta": {
+    "title": "Build your ATS-friendly CV.",
+    "startBuilding": "Start building"
+  },
+  "footer": {
+    "homeLabel": "CV Workbench home",
+    "builtBy": "Built by"
+  }
+}

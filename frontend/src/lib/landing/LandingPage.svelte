@@ -1,7 +1,9 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import type { Locale } from '$lib/i18n';
+  import { getLandingCopy } from '$lib/i18n';
   import PageSeo from '$lib/seo/PageSeo.svelte';
-  import { absoluteUrl, LANDING_SEO, resolveSiteOrigin } from '$lib/seo';
+  import { absoluteUrl, resolveSiteOrigin } from '$lib/seo';
   import LandingCta from './LandingCta.svelte';
   import LandingFooter from './LandingFooter.svelte';
   import LandingHeader from './LandingHeader.svelte';
@@ -9,34 +11,20 @@
   import LandingWorkflow from './LandingWorkflow.svelte';
   import HeroProofDesk from './HeroProofDesk.svelte';
 
-  const pageTitle = LANDING_SEO.title;
-  const pageDescription = LANDING_SEO.description;
+  export let locale: Locale = 'en';
+
+  $: copy = getLandingCopy(locale);
+  $: canonicalPath = locale === 'id' ? '/id' : '/';
   const socialImagePath = '/templates/editorial-v1.webp';
 
-  const templates = [
-    {
-      id: 'editorial-v1',
-      name: 'Editorial dossier',
-      description: 'A quiet, structured page for thoughtful work.',
-      image: '/templates/editorial-v1.webp'
-    },
-    {
-      id: 'compact-v1',
-      name: 'Compact signal',
-      description: 'A denser layout for broad experience.',
-      image: '/templates/compact-v1.webp'
-    },
-    {
-      id: 'modern-v1',
-      name: 'Modern hierarchy',
-      description: 'A contemporary layout with a stronger accent.',
-      image: '/templates/modern-v1.webp'
-    }
-  ];
-
   $: siteOrigin = resolveSiteOrigin($page.url.origin);
-  $: canonicalUrl = absoluteUrl(siteOrigin, '/');
+  $: canonicalUrl = absoluteUrl(siteOrigin, canonicalPath);
   $: socialImageUrl = absoluteUrl(siteOrigin, socialImagePath);
+  $: alternatePaths = [
+    { hreflang: 'en', path: '/' },
+    { hreflang: 'id', path: '/id' },
+    { hreflang: 'x-default', path: '/' }
+  ];
   $: structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -55,8 +43,8 @@
         '@id': `${siteOrigin}/#website`,
         name: 'CV Workbench',
         url: canonicalUrl,
-        description: pageDescription,
-        inLanguage: 'en-US',
+        description: copy.seo.description,
+        inLanguage: copy.seo.inLanguage,
         publisher: { '@id': `${siteOrigin}/#organization` }
       },
       {
@@ -64,15 +52,15 @@
         '@id': `${siteOrigin}/#application`,
         name: 'CV Workbench',
         url: canonicalUrl,
-        description: pageDescription,
+        description: copy.seo.description,
         applicationCategory: 'BusinessApplication',
-        applicationSubCategory: 'ATS-friendly CV builder',
+        applicationSubCategory: copy.seo.applicationSubCategory,
         operatingSystem: 'Web browser',
         browserRequirements: 'Requires JavaScript',
         isAccessibleForFree: true,
         image: socialImageUrl,
-        inLanguage: 'en-US',
-        featureList: ['ATS-friendly CV structure', 'Exact LaTeX source', 'Rendered PDF'],
+        inLanguage: copy.seo.inLanguage,
+        featureList: copy.seo.featureList,
         creator: { '@id': `${siteOrigin}/#organization` },
         potentialAction: {
           '@type': 'CreateAction',
@@ -87,27 +75,30 @@
 </script>
 
 <PageSeo
-  title={pageTitle}
-  description={pageDescription}
+  title={copy.seo.title}
+  description={copy.seo.description}
   indexable
-  canonicalPath="/"
+  {canonicalPath}
   {socialImagePath}
+  socialImageAlt={copy.seo.socialImageAlt}
+  ogLocale={copy.seo.ogLocale}
+  {alternatePaths}
   {structuredData} />
 
 <svelte:head>
-  {#each templates as template}
+  {#each copy.templates.items as template}
     <link rel="preload" as="image" href={template.image} />
   {/each}
 </svelte:head>
 
 <main class="landing">
   <div class="proof-thread" aria-hidden="true"></div>
-  <LandingHeader />
-  <HeroProofDesk />
-  <LandingTemplates {templates} />
-  <LandingWorkflow />
-  <LandingCta />
-  <LandingFooter />
+  <LandingHeader copy={copy.header} {locale} />
+  <HeroProofDesk copy={copy.hero} />
+  <LandingTemplates copy={copy.templates} templates={copy.templates.items} />
+  <LandingWorkflow copy={copy.workflow} />
+  <LandingCta copy={copy.cta} />
+  <LandingFooter copy={copy.footer} />
 </main>
 
 <style>

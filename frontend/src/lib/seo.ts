@@ -1,11 +1,5 @@
 export const SITE_NAME = 'CV Workbench';
 
-export const LANDING_SEO = {
-  title: 'CV Workbench — ATS-Friendly CV Builder',
-  description:
-    'Create a free, ATS-friendly CV with structured sections, exact LaTeX source, and a polished PDF. No account required to start.'
-};
-
 export const BUILDER_SEO = {
   title: 'CV Workbench — CV Builder',
   description:

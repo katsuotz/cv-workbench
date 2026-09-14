@@ -54,7 +54,10 @@ test('shows the CV Workbench landing page and routes visitors to the builder', a
 test('publishes crawl and AI discovery files for the public site', async ({ request }) => {
   const robots = await request.get('/robots.txt');
   expect(robots.ok()).toBeTruthy();
-  expect(await robots.text()).toContain('Sitemap: https://cvworkbench.com/sitemap.xml');
+  const robotsText = await robots.text();
+  expect(robotsText).not.toContain('Disallow: /app');
+  expect(robotsText).toContain('Disallow: /admin');
+  expect(robotsText).toContain('Sitemap: https://cvworkbench.com/sitemap.xml');
 
   const sitemap = await request.get('/sitemap.xml');
   expect(sitemap.ok()).toBeTruthy();
@@ -76,6 +79,22 @@ test('opens the builder from the primary landing CTA', async ({ page }) => {
 
 test('keeps the interactive builder out of search results', async ({ page }) => {
   await page.goto('/app');
+  await expect(page).toHaveTitle('CV Workbench — CV Builder');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content',
+    /Build and refine your CV.*exact LaTeX source.*rendered PDF/
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    'content',
+    'noindex, nofollow, noarchive'
+  );
+
+  await page.goto('/admin');
+  await expect(page).toHaveTitle('CV Workbench — Admin');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content',
+    'Manage CV Workbench user accounts.'
+  );
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     'content',
     'noindex, nofollow, noarchive'

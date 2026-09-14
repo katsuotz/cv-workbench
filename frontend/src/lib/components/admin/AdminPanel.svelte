@@ -106,12 +106,6 @@
   }
 </script>
 
-<svelte:head>
-  <title>Users — CV Workbench</title>
-  <meta name="description" content="Manage CV Workbench user accounts." />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-</svelte:head>
-
 <div class="admin-shell">
   <header class="admin-header">
     <div class="admin-header-inner">

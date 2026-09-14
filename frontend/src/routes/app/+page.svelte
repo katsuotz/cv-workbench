@@ -1,14 +1,9 @@
 <script lang="ts">
+  import PageSeo from '$lib/seo/PageSeo.svelte';
+  import { BUILDER_SEO, NOINDEX_ROBOTS } from '$lib/seo';
   import Workspace from '$lib/workspace/Workspace.svelte';
 </script>
 
-<svelte:head>
-  <title>CV Workbench — ATS-friendly CV builder</title>
-  <meta
-    name="description"
-    content="Build an ATS-friendly CV with structured sections and generate a polished XeLaTeX document." />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="googlebot" content="noindex, nofollow, noarchive" />
-</svelte:head>
+<PageSeo title={BUILDER_SEO.title} description={BUILDER_SEO.description} robots={NOINDEX_ROBOTS} />
 
 <Workspace />

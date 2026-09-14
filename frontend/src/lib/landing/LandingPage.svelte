@@ -1,5 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import PageSeo from '$lib/seo/PageSeo.svelte';
+  import { absoluteUrl, LANDING_SEO, resolveSiteOrigin } from '$lib/seo';
   import LandingCta from './LandingCta.svelte';
   import LandingFooter from './LandingFooter.svelte';
   import LandingHeader from './LandingHeader.svelte';
@@ -7,10 +9,8 @@
   import LandingWorkflow from './LandingWorkflow.svelte';
   import HeroProofDesk from './HeroProofDesk.svelte';
 
-  const pageTitle = 'Free ATS-Friendly CV Builder | CV Workbench';
-  const pageDescription =
-    'Create a free, ATS-friendly CV with structured sections, polished templates, exact LaTeX source, and a downloadable PDF. No account required to start.';
-  const defaultSiteOrigin = import.meta.env.DEV ? '' : 'https://cvworkbench.com';
+  const pageTitle = LANDING_SEO.title;
+  const pageDescription = LANDING_SEO.description;
   const socialImagePath = '/templates/editorial-v1.webp';
 
   const templates = [
@@ -34,13 +34,9 @@
     }
   ];
 
-  $: siteOrigin = (
-    import.meta.env.PUBLIC_SITE_URL ||
-    defaultSiteOrigin ||
-    $page.url.origin
-  ).replace(/\/$/, '');
-  $: canonicalUrl = `${siteOrigin}/`;
-  $: socialImageUrl = `${siteOrigin}${socialImagePath}`;
+  $: siteOrigin = resolveSiteOrigin($page.url.origin);
+  $: canonicalUrl = absoluteUrl(siteOrigin, '/');
+  $: socialImageUrl = absoluteUrl(siteOrigin, socialImagePath);
   $: structuredData = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -88,41 +84,17 @@
       }
     ]
   };
-  $: structuredDataMarkup = `<script type="application/ld+json">${JSON.stringify(structuredData)}\u003c/script>`;
 </script>
 
+<PageSeo
+  title={pageTitle}
+  description={pageDescription}
+  indexable
+  canonicalPath="/"
+  {socialImagePath}
+  {structuredData} />
+
 <svelte:head>
-  <title>{pageTitle}</title>
-  <meta name="description" content={pageDescription} />
-  <meta name="author" content="CV Workbench" />
-  <meta
-    name="robots"
-    content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <meta
-    name="googlebot"
-    content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-  <meta name="application-name" content="CV Workbench" />
-  <link rel="canonical" href={canonicalUrl} />
-  <link rel="alternate" hreflang="en" href={canonicalUrl} />
-  <link rel="alternate" hreflang="x-default" href={canonicalUrl} />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="CV Workbench" />
-  <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content={pageTitle} />
-  <meta property="og:description" content={pageDescription} />
-  <meta property="og:url" content={canonicalUrl} />
-  <meta property="og:image" content={socialImageUrl} />
-  <meta property="og:image:secure_url" content={socialImageUrl} />
-  <meta property="og:image:type" content="image/webp" />
-  <meta property="og:image:width" content="1020" />
-  <meta property="og:image:height" content="1320" />
-  <meta property="og:image:alt" content="ATS-friendly CV template preview from CV Workbench" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content={pageTitle} />
-  <meta name="twitter:description" content={pageDescription} />
-  <meta name="twitter:image" content={socialImageUrl} />
-  <meta name="twitter:image:alt" content="ATS-friendly CV template preview from CV Workbench" />
-  {@html structuredDataMarkup}
   {#each templates as template}
     <link rel="preload" as="image" href={template.image} />
   {/each}
